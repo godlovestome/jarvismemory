@@ -1,23 +1,20 @@
-# Jarvis Memory Bootstrap
+﻿# Jarvis Memory Bootstrap
 
-Bootstrap repository for deploying the current working `Jarvis Memory + True Recall`
-stack onto an existing OpenClaw host without depending on the retired SpeedyFox GitLab.
+`Jarvis Memory + True Recall` 的 GitHub 部署仓库。
 
-## What this repo does
+This repository turns the currently working VPS deployment into a repeatable
+bootstrap flow for future OpenClaw installs.
 
-- Stores the runtime-tested workspace files that are already running on the VPS.
-- Adds a repeatable bootstrap script for new OpenClaw installs.
-- Keeps deployment logic outside the OpenClaw app itself, so OpenClaw updates do not
-  become the source of truth for this memory stack.
-- Preserves the current live architecture:
-  - OpenClaw sessions stay under `~/.openclaw/agents/main/sessions`
-  - workspace integrations stay under `~/.openclaw/workspace`
-  - Redis and Qdrant stay in Docker
-  - True Recall stays under `~/.openclaw/workspace/.projects/true-recall`
+## What This Repo Is For
 
-## Quick start
+- Rebuild deployment from GitHub instead of the retired SpeedyFox GitLab.
+- Keep Jarvis Memory and True Recall outside the OpenClaw app codebase.
+- Re-sync managed files after OpenClaw updates without rebuilding everything by hand.
+- Preserve the current live architecture instead of replacing it with a new one.
 
-On a new VPS where OpenClaw is already installed:
+## Quick Start
+
+On a VPS where OpenClaw is already installed:
 
 ```bash
 git clone https://github.com/godlovestome/jarvismemory.git
@@ -25,42 +22,40 @@ cd jarvismemory
 sudo bash bootstrap/bootstrap.sh
 ```
 
-The bootstrap script will:
+在已经安装好 OpenClaw 的 VPS 上，执行上面三条命令即可开始接管式部署。
 
-- install missing host dependencies
-- install or validate Docker and Ollama
-- pull the required models
-- deploy the workspace files
-- generate `.memory_env`
-- configure cron
-- set the system timezone
-- run a final audit
+## Docs
 
-## Current defaults
+- Deployment guide / 部署手册: `docs/DEPLOYMENT.md`
+- Audit notes / 审计说明: `docs/AUDIT.md`
+
+## What The Bootstrap Script Does
+
+- installs or validates host dependencies
+- starts Redis and Qdrant via Docker
+- validates Ollama and required models
+- syncs managed workspace files into `~/.openclaw/workspace`
+- writes `.memory_env`
+- configures timezone and cron
+- runs a final audit
+
+## Current Defaults
 
 - OpenClaw user: `openclaw`
 - Timezone: `America/Los_Angeles`
 - True Recall: `10:30`
 - Jarvis Memory backup: `11:00`
 - Sliding backup: `11:30`
-- Compose project name: `jarvis-memory`
 - Embedding model: `mxbai-embed-large`
 - Curator model: `qwen3.5:35b-a3b`
 
-These defaults match the currently deployed VPS more closely than the older manual guide.
+## Safety Goal
 
-## Audit notes
+The goal is:
 
-The full audit is in `docs/AUDIT.md`.
+- OpenClaw can be updated independently
+- this repo remains the source of truth for memory deployment
+- rerunning bootstrap restores managed files and schedules
 
-In short:
-
-- the original SpeedyFox GitLab remotes are no longer a viable source of truth
-- the live VPS contains runtime fixes that never made it back into the source repos
-- the original guide is too manual to serve as a long-term deployment workflow
-
-## Important
-
-This repo is designed to adopt the current working deployment, not replace it with a new
-architecture. The bootstrap flow copies managed files into the OpenClaw workspace and can
-be re-run safely after updates.
+这意味着以后新装 OpenClaw 后，可以直接从这个 GitHub 仓库拉代码并执行 bootstrap，
+而不是重新手工照旧文档逐条修改。
