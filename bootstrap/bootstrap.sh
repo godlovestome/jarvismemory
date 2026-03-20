@@ -322,4 +322,4 @@ main() {
   OPENCLAW_USER="${OPENCLAW_USER}" OPENCLAW_HOME="${OPENCLAW_HOME}" WORKSPACE_DIR="${WORKSPACE_DIR}" "${SCRIPT_DIR}/audit.sh"
 }
 
-main "$@"
+[[ "${BASH_SOURCE[0]}" == "${0}" ]] && main "$@"
