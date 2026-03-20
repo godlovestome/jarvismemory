@@ -1,0 +1,5 @@
+_audit_snapshot/
+*.log
+*.bak
+__pycache__/
+*.pyc

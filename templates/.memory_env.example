@@ -1,0 +1,30 @@
+﻿# Jarvis Memory + True Recall
+
+export WORKSPACE_DIR="$HOME/.openclaw/workspace"
+export OPENCLAW_WORKSPACE="$HOME/.openclaw/workspace"
+export OPENCLAW_SESSIONS_DIR="$HOME/.openclaw/agents/main/sessions"
+
+export USER_ID="replace-me"
+
+export REDIS_HOST="127.0.0.1"
+export REDIS_PORT="6379"
+
+export QDRANT_URL="http://127.0.0.1:6333"
+export QDRANT_COLLECTION="kimi_memories"
+export TR_COLLECTION="true_recall"
+
+export OLLAMA_URL="http://127.0.0.1:11434"
+export EMBEDDING_MODEL="mxbai-embed-large"
+export CURATION_MODEL="qwen3.5:35b-a3b"
+
+export MEMORY_INITIALIZED="true"
+
+# Proxy bypass for internal/local services (required when CodeShield is active).
+# Prevents Python urllib and Node.js from routing Ollama/Qdrant/Redis calls
+# through the Squid proxy, which blocks non-standard ports (11434, 6333, 6379).
+export NO_PROXY="127.0.0.1,localhost,10.0.0.0/8"
+export no_proxy="127.0.0.1,localhost,10.0.0.0/8"
+
+# Qdrant API key — set this when CodeShield has enabled Qdrant authentication
+# (lib/03-qdrant.sh sets QDRANT__SERVICE__API_KEY). Leave empty if auth is off.
+export QDRANT_API_KEY=""
