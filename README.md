@@ -75,7 +75,8 @@ For deployments already running, use the non-destructive updater:
 已部署的系统请使用无损更新脚本：
 
 ```bash
-cd ~/jarvismemory && git pull && sudo bash bootstrap/update.sh
+# 路径替换为实际克隆位置 / Replace with your actual clone path
+cd /path/to/jarvismemory && git pull && sudo bash bootstrap/update.sh
 ```
 
 This **preserves all secrets and running containers**. It only syncs scripts and
