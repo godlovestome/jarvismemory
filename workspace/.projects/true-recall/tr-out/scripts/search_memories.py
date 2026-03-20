@@ -15,6 +15,14 @@ QDRANT_COLLECTION = os.getenv("TR_COLLECTION", "true_recall")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "mxbai-embed-large")
 DEFAULT_USER_ID = os.getenv("USER_ID", "")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
+
+
+def _qdrant_headers() -> dict:
+    h = {}
+    if QDRANT_API_KEY:
+        h["api-key"] = QDRANT_API_KEY
+    return h
 
 
 def get_embedding(text: str) -> List[float]:
@@ -37,6 +45,7 @@ def search_memories(query: str, user_id: str, limit: int, min_score: float) -> L
             "filter": {"must": [{"key": "user_id", "match": {"value": user_id}}]},
             "score_threshold": min_score,
         },
+        headers=_qdrant_headers(),
         timeout=60,
     )
     response.raise_for_status()

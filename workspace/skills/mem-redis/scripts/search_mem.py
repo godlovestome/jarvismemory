@@ -25,6 +25,13 @@ USER_ID = os.getenv("USER_ID", "yourname")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "mxbai-embed-large")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
+
+def _qdrant_headers():
+    h = {"Content-Type": "application/json"}
+    if QDRANT_API_KEY:
+        h["api-key"] = QDRANT_API_KEY
+    return h
 
 def _ollama_embeddings_url():
     base = OLLAMA_URL.rstrip("/")
@@ -115,7 +122,7 @@ def search_qdrant(query, user_id, limit=10):
     req = urllib.request.Request(
         f"{QDRANT_URL}/collections/kimi_memories/points/search",
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers=_qdrant_headers(),
         method="POST"
     )
     

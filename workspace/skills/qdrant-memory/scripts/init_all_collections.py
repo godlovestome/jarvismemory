@@ -18,9 +18,11 @@ Usage: init_all_collections.py [--recreate]
 
 import argparse
 import json
+import os
 import sys
 
-QDRANT_URL = "http://10.0.0.40:6333"
+QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 
 # Collection configurations
 COLLECTIONS = {
@@ -45,6 +47,8 @@ def make_request(url, data=None, method="GET"):
     if data:
         req.data = json.dumps(data).encode()
         req.add_header("Content-Type", "application/json")
+    if QDRANT_API_KEY:
+        req.add_header("api-key", QDRANT_API_KEY)
     return req
 
 def collection_exists(name):

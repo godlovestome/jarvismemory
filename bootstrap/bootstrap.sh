@@ -123,6 +123,16 @@ export EMBEDDING_MODEL="${EMBEDDING_MODEL}"
 export CURATION_MODEL="${CURATION_MODEL}"
 
 export MEMORY_INITIALIZED="true"
+
+# Proxy bypass — prevents Python urllib and Node.js from routing local service
+# calls (Ollama, Qdrant, Redis) through Squid when CodeShield is active.
+# Squid blocks non-standard ports (11434, 6333, 6379) by default.
+export NO_PROXY="127.0.0.1,localhost,10.0.0.0/8"
+export no_proxy="127.0.0.1,localhost,10.0.0.0/8"
+
+# Qdrant API key — set if CodeShield enabled Qdrant authentication.
+# Copy the value from /etc/openclaw-codeshield/secrets.env after CodeShield install.
+export QDRANT_API_KEY="${QDRANT_API_KEY:-}"
 EOF
 )
 

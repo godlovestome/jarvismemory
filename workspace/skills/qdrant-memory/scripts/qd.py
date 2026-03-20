@@ -16,24 +16,32 @@ Commands:
 
 import argparse
 import json
+import os
 import sys
 import urllib.request
 import uuid
 from datetime import datetime
 
-QDRANT_URL = "http://10.0.0.40:6333"
-COLLECTION = "Qdrant_Documents"
-OLLAMA_URL = "http://localhost:11434/v1"
+QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+COLLECTION = os.getenv("QD_COLLECTION", "Qdrant_Documents")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 
 # ============================================================================
 # UTILITIES
 # ============================================================================
 
+def _ollama_embeddings_url():
+    base = OLLAMA_URL.rstrip("/")
+    if base.endswith("/v1"):
+        return f"{base}/embeddings"
+    return f"{base}/v1/embeddings"
+
 def get_embedding(text, model="nomic-embed-text"):
     """Generate embedding using Ollama"""
     data = json.dumps({"model": model, "input": text[:8000]}).encode()
     req = urllib.request.Request(
-        f"http://127.0.0.1:11434/v1/embeddings",
+        _ollama_embeddings_url(),
         data=data,
         headers={"Content-Type": "application/json"}
     )
@@ -50,6 +58,8 @@ def make_request(url, data=None, method="GET"):
     if data:
         req.data = json.dumps(data).encode()
         req.add_header("Content-Type", "application/json")
+    if QDRANT_API_KEY:
+        req.add_header("api-key", QDRANT_API_KEY)
     return req
 
 def check_collection():

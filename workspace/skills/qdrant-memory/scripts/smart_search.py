@@ -5,6 +5,7 @@ Usage: smart_search.py "query" [--domain "Domain"] [--min-kb-score 0.5] [--store
 """
 
 import argparse
+import os
 import sys
 import json
 import urllib.request
@@ -12,10 +13,18 @@ import urllib.parse
 import re
 from datetime import datetime
 
-QDRANT_URL = "http://10.0.0.40:6333"
-OLLAMA_EMBED_URL = "http://localhost:11434/api/embed"
-SEARXNG_URL = "http://10.0.0.8:8888"
-KB_COLLECTION = "knowledge_base"
+QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
+OLLAMA_EMBED_URL = f"{OLLAMA_URL.rstrip('/')}/api/embed"
+SEARXNG_URL = os.getenv("SEARXNG_URL", "http://10.0.0.8:8888")
+KB_COLLECTION = os.getenv("KB_COLLECTION", "knowledge_base")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
+
+def _qdrant_headers():
+    h = {"Content-Type": "application/json"}
+    if QDRANT_API_KEY:
+        h["api-key"] = QDRANT_API_KEY
+    return h
 
 def get_embedding(text):
     """Generate embedding via Ollama"""
@@ -61,7 +70,7 @@ def search_knowledge_base(query, domain=None, limit=5, min_score=0.5):
     req = urllib.request.Request(
         url,
         data=json.dumps(search_data).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=_qdrant_headers(),
         method="POST"
     )
     
@@ -162,7 +171,7 @@ def store_in_kb(text, metadata):
     req = urllib.request.Request(
         url,
         data=json.dumps({"points": [point]}).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=_qdrant_headers(),
         method="PUT"
     )
     

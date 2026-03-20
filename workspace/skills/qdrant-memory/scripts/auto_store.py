@@ -39,9 +39,16 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", "kimi_memories")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "mxbai-embed-large")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 
 # In-memory cache for deduplication (per process)
 _recent_hashes = set()
+
+def _qdrant_headers() -> dict:
+    h = {"Content-Type": "application/json"}
+    if QDRANT_API_KEY:
+        h["api-key"] = QDRANT_API_KEY
+    return h
 
 def _ollama_embeddings_url() -> str:
     base = OLLAMA_URL.rstrip("/")
@@ -81,7 +88,7 @@ def is_duplicate(user_id: str, user_msg: str, ai_response: str) -> bool:
         req = urllib.request.Request(
             f"{QDRANT_URL}/collections/{COLLECTION_NAME}/points/scroll",
             data=json.dumps(search_body).encode(),
-            headers={"Content-Type": "application/json"}
+            headers=_qdrant_headers()
         )
         
         with urllib.request.urlopen(req, timeout=10) as response:
@@ -181,7 +188,7 @@ def store_memory_point(
     req = urllib.request.Request(
         f"{QDRANT_URL}/collections/{COLLECTION_NAME}/points?wait=true",
         data=json.dumps(upsert_data).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=_qdrant_headers(),
         method="PUT"
     )
     

@@ -15,6 +15,14 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
 COLLECTION_NAME = os.getenv("QDRANT_COLLECTION", "kimi_memories")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "mxbai-embed-large")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
+
+
+def _qdrant_headers() -> dict:
+    h = {"Content-Type": "application/json"}
+    if QDRANT_API_KEY:
+        h["api-key"] = QDRANT_API_KEY
+    return h
 
 
 def _ollama_embeddings_url() -> str:
@@ -55,7 +63,7 @@ def update_access_stats(point_id: Any, current_payload: Dict[str, Any]) -> bool:
     req = urllib.request.Request(
         f"{QDRANT_URL}/collections/{COLLECTION_NAME}/points/payload?wait=true",
         data=json.dumps(update_body).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=_qdrant_headers(),
         method="PUT",
     )
     try:
@@ -79,7 +87,7 @@ def search_memories(query_vector: List[float], limit: int = 5, tag_filter: str |
     req = urllib.request.Request(
         f"{QDRANT_URL}/collections/{COLLECTION_NAME}/points/search",
         data=json.dumps(search_body).encode(),
-        headers={"Content-Type": "application/json"},
+        headers=_qdrant_headers(),
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as response:
