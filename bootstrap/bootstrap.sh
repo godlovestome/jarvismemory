@@ -9,6 +9,7 @@ TIMEZONE="${TIMEZONE:-America/Los_Angeles}"
 USER_ID="${USER_ID:-}"
 EMBEDDING_MODEL="${EMBEDDING_MODEL:-mxbai-embed-large}"
 CURATION_MODEL="${CURATION_MODEL:-qwen3.5:35b-a3b}"
+OPENCLAW_MEMORYSEARCH_MODEL="${OPENCLAW_MEMORYSEARCH_MODEL:-qwen3-embedding:4b}"
 OPENCLAW_HOME="${OPENCLAW_HOME:-/home/${OPENCLAW_USER}}"
 WORKSPACE_DIR="${WORKSPACE_DIR:-${OPENCLAW_HOME}/.openclaw/workspace}"
 SESSIONS_DIR="${SESSIONS_DIR:-${OPENCLAW_HOME}/.openclaw/agents/main/sessions}"
@@ -130,19 +131,60 @@ export MEMORY_INITIALIZED="true"
 export NO_PROXY="127.0.0.1,localhost,10.0.0.0/8"
 export no_proxy="127.0.0.1,localhost,10.0.0.0/8"
 
-# Qdrant API key — set if CodeShield enabled Qdrant authentication.
-# Copy the value from /etc/openclaw-codeshield/secrets.env after CodeShield install.
-export QDRANT_API_KEY="${QDRANT_API_KEY:-}"
+# QDRANT_API_KEY managed by CodeShield — sourced from restricted path (root:openclaw 640)
+# If CodeShield is not installed, set QDRANT_API_KEY directly here instead.
+if [ -f /run/openclaw-memory/secrets.env ]; then
+  . /run/openclaw-memory/secrets.env
+  export QDRANT_API_KEY
+fi
 EOF
 )
 
   printf '%s\n' "${env_body}" > "${MEM_ENV_HOME}"
   printf '%s\n' "${env_body}" > "${MEM_ENV_WORKSPACE}"
   chown "${OPENCLAW_USER}:${OPENCLAW_USER}" "${MEM_ENV_HOME}" "${MEM_ENV_WORKSPACE}"
+  chmod 600 "${MEM_ENV_HOME}" "${MEM_ENV_WORKSPACE}"
 
   if ! grep -Fq 'source ~/.memory_env' "${OPENCLAW_HOME}/.bashrc"; then
     printf '\n# Jarvis Memory\nsource ~/.memory_env\n' >> "${OPENCLAW_HOME}/.bashrc"
   fi
+}
+
+# Configure OpenClaw's built-in memory_search to use local Ollama.
+# This avoids iptables/proxy conflicts under CodeShield (external APIs
+# are blocked by iptables for openclaw-svc; SSRF guard bypasses proxy).
+configure_openclaw_memorysearch() {
+  local OPENCLAW_MEMORYSEARCH_MODEL="${OPENCLAW_MEMORYSEARCH_MODEL:-qwen3-embedding:4b}"
+  local openclaw_bin
+
+  # Find openclaw binary
+  openclaw_bin="$(su - "${OPENCLAW_USER}" -c 'which openclaw' 2>/dev/null || true)"
+  if [[ -z "${openclaw_bin}" ]]; then
+    log "WARN: openclaw binary not found; skipping memorySearch config"
+    return 0
+  fi
+
+  # Pull embedding model if not present
+  if ! ollama list 2>/dev/null | grep -q "${OPENCLAW_MEMORYSEARCH_MODEL}"; then
+    log "Pulling Ollama model: ${OPENCLAW_MEMORYSEARCH_MODEL}"
+    ollama pull "${OPENCLAW_MEMORYSEARCH_MODEL}" || {
+      log "WARN: failed to pull ${OPENCLAW_MEMORYSEARCH_MODEL}; skipping memorySearch config"
+      return 0
+    }
+  fi
+
+  # Set memorySearch provider and model for the interactive user
+  su - "${OPENCLAW_USER}" -c "openclaw config set agents.defaults.memorySearch.provider ollama" 2>/dev/null || true
+  su - "${OPENCLAW_USER}" -c "openclaw config set agents.defaults.memorySearch.model '${OPENCLAW_MEMORYSEARCH_MODEL}'" 2>/dev/null || true
+
+  # Also set for the service user if it exists
+  local svc_user="openclaw-svc"
+  if id "${svc_user}" >/dev/null 2>&1; then
+    su -s /bin/bash "${svc_user}" -c "openclaw config set agents.defaults.memorySearch.provider ollama" 2>/dev/null || true
+    su -s /bin/bash "${svc_user}" -c "openclaw config set agents.defaults.memorySearch.model '${OPENCLAW_MEMORYSEARCH_MODEL}'" 2>/dev/null || true
+  fi
+
+  log "OpenClaw memorySearch configured: provider=ollama model=${OPENCLAW_MEMORYSEARCH_MODEL}"
 }
 
 sync_workspace() {
@@ -317,6 +359,9 @@ main() {
 
   log "Configuring cron"
   configure_cron
+
+  log "Configuring OpenClaw memorySearch (local Ollama)"
+  configure_openclaw_memorysearch
 
   log "Running final audit"
   OPENCLAW_USER="${OPENCLAW_USER}" OPENCLAW_HOME="${OPENCLAW_HOME}" WORKSPACE_DIR="${WORKSPACE_DIR}" "${SCRIPT_DIR}/audit.sh"

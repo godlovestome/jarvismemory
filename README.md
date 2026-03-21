@@ -1,18 +1,71 @@
-# Jarvis Memory Bootstrap
+# Jarvis Memory v2.0.0
 
-`Jarvis Memory + True Recall` 的 GitHub 部署仓库。
+**Persistent Memory System for OpenClaw AI Agents / OpenClaw AI Agent 永续记忆系统**
 
-This repository turns the currently working VPS deployment into a repeatable
-bootstrap flow for future OpenClaw installs.
+Jarvis Memory + True Recall provides a persistent, cross-session memory system that operates independently from OpenClaw's built-in `memory_search`. It uses Qdrant (vector DB) + Ollama (local embeddings) + Redis (buffer), and survives OpenClaw upgrades without data loss. V2.0.0 adds CodeShield V3.0.11 integration, secure secret management, and automatic OpenClaw `memorySearch` configuration with local Ollama.
 
 ---
 
-## What This Repo Is For / 仓库用途
+**Jarvis Memory v2.0.0 — OpenClaw AI Agent 永续记忆系统**
 
-- Rebuild deployment from GitHub instead of the retired SpeedyFox GitLab.
-- Keep Jarvis Memory and True Recall outside the OpenClaw app codebase.
-- Re-sync managed files after OpenClaw updates without rebuilding everything by hand.
-- Preserve the current live architecture instead of replacing it with a new one.
+Jarvis Memory + True Recall 提供独立于 OpenClaw 内置 `memory_search` 的持久化跨会话记忆系统。使用 Qdrant（向量数据库）+ Ollama（本地嵌入）+ Redis（缓冲），OpenClaw 升级不影响记忆数据。V2.0.0 新增 CodeShield V3.0.11 集成、安全密钥管理、自动配置 OpenClaw `memorySearch` 使用本地 Ollama。
+
+---
+
+## Quick Start / 快速开始
+
+### Fresh Install / 全新安装（一行命令）
+
+```bash
+git clone https://github.com/godlovestome/jarvismemory.git && cd jarvismemory && sudo bash bootstrap/bootstrap.sh
+```
+
+### Update Existing / 无损更新（一行命令）
+
+```bash
+cd ~/jarvismemory && git pull && sudo bash bootstrap/update.sh
+```
+
+> **OpenClaw updates are safe / OpenClaw 更新安全：**
+> ```bash
+> curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard
+> ```
+> This only updates OpenClaw code. It does **NOT** touch:
+> - Jarvis Memory data (Qdrant/Redis)
+> - `openclaw.json` configuration (memorySearch settings preserved)
+> - `.memory_env` / cron jobs / workspace scripts
+> - CodeShield security framework
+>
+> After OpenClaw update, re-run `sudo bash bootstrap/update.sh` to re-sync scripts.
+>
+> 此命令仅更新 OpenClaw 代码，**不会**影响 Jarvis Memory 数据、配置、定时任务或 CodeShield 安全框架。更新后执行 `sudo bash bootstrap/update.sh` 重新同步脚本。
+
+---
+
+## Architecture / 架构
+
+Two independent memory systems running side by side:
+
+两套独立的记忆系统并行运行：
+
+| | OpenClaw memory_search | Jarvis Memory + True Recall |
+|---|---|---|
+| **Storage / 存储** | SQLite + sqlite-vec | Qdrant vector DB |
+| **Embedding** | Ollama `qwen3-embedding:4b` (2560d) | Ollama `mxbai-embed-large` (1024d) |
+| **Data / 数据** | OpenClaw workspace memory files | Conversations, facts, curated gems |
+| **Scope / 范围** | Current workspace context | Cross-session persistent memory |
+| **Conflict / 冲突** | None — separate storage, models, config / 无——存储、模型、配置完全独立 |
+
+---
+
+## What's New in v2.0.0 / v2.0.0 更新内容
+
+| Change / 变更 | Description / 说明 |
+|---|---|
+| CodeShield integration | `QDRANT_API_KEY` sourced from `/run/openclaw-memory/secrets.env` (CodeShield V3.0.11) instead of plaintext / 密钥从 CodeShield 安全路径加载，不再明文存储 |
+| OpenClaw memorySearch config | Auto-configures `memorySearch.provider=ollama` + `model=qwen3-embedding:4b` / 自动配置 OpenClaw 使用本地 Ollama 做 embedding |
+| `.memory_env` hardening | Permissions tightened to 600; QDRANT_API_KEY no longer stored in plaintext / 权限收紧为 600；密钥不再明文存储 |
+| Diagnose: CodeShield checks | `diagnose.sh` now checks CodeShield interaction, proxy, and secret paths / 诊断脚本新增 CodeShield 检查项 |
 
 ---
 
@@ -44,7 +97,8 @@ The script will prompt for `USER_ID` on first run if not set in the environment.
 | 4 | Sync workspace scripts to `~/.openclaw/workspace` | 同步脚本到 workspace |
 | 5 | Write `.memory_env` configuration file | 生成 `.memory_env` 配置文件 |
 | 6 | Configure system timezone and cron schedules | 设置时区和定时任务 |
-| 7 | Run final audit | 执行最终检查 |
+| 7 | Configure OpenClaw memorySearch (local Ollama) | 配置 OpenClaw memorySearch 使用本地 Ollama |
+| 8 | Run final audit | 执行最终检查 |
 
 **Configurable defaults / 可配置默认值：**
 
@@ -52,8 +106,9 @@ The script will prompt for `USER_ID` on first run if not set in the environment.
 |----------|---------|---------------------|
 | `OPENCLAW_USER` | `openclaw` | System user / 系统用户 |
 | `TIMEZONE` | `America/Los_Angeles` | System timezone / 系统时区 |
-| `EMBEDDING_MODEL` | `mxbai-embed-large` | Embedding model / 向量嵌入模型 |
-| `CURATION_MODEL` | `qwen3.5:35b-a3b` | LLM for curation / 记忆整理模型 |
+| `EMBEDDING_MODEL` | `mxbai-embed-large` | Jarvis Memory embedding model / Jarvis 向量嵌入模型 |
+| `CURATION_MODEL` | `qwen3.5:35b-a3b` | LLM for True Recall curation / True Recall 整理模型 |
+| `OPENCLAW_MEMORYSEARCH_MODEL` | `qwen3-embedding:4b` | OpenClaw memory_search embedding / OpenClaw 搜索嵌入模型 |
 | `TR_SCHEDULE` | `30 10 * * *` | True Recall daily run / True Recall 每日执行 |
 | `BACKUP_SCHEDULE` | `0 11 * * *` | Daily backup / 每日备份 |
 | `SLIDING_SCHEDULE` | `30 11 * * *` | Sliding backup / 滑动备份 |
@@ -63,7 +118,7 @@ Override any variable before running:
 运行前可直接覆盖变量：
 
 ```bash
-sudo TIMEZONE=Asia/Shanghai EMBEDDING_MODEL=nomic-embed-text bash bootstrap/bootstrap.sh
+sudo TIMEZONE=Asia/Shanghai OPENCLAW_MEMORYSEARCH_MODEL=nomic-embed-text bash bootstrap/bootstrap.sh
 ```
 
 ---
@@ -75,8 +130,7 @@ For deployments already running, use the non-destructive updater:
 已部署的系统请使用无损更新脚本：
 
 ```bash
-# 路径替换为实际克隆位置 / Replace with your actual clone path
-cd /path/to/jarvismemory && git pull && sudo bash bootstrap/update.sh
+cd ~/jarvismemory && git pull && sudo bash bootstrap/update.sh
 ```
 
 This **preserves all secrets and running containers**. It only syncs scripts and
@@ -94,6 +148,7 @@ regenerates config/cron.
 | Redis buffer / Redis 缓存 | ✓ | |
 | Running Docker containers / 运行中容器 | ✓ | |
 | Ollama models / Ollama 模型 | ✓ | |
+| OpenClaw `memorySearch` config | ✓ | |
 | Python scripts in `workspace/skills/` | | ✓ |
 | True Recall scripts in `workspace/.projects/` | | ✓ |
 | `.memory_env` values | | ✓ (保留现有值重新写入) |
@@ -127,21 +182,11 @@ sudo bash bootstrap/diagnose.sh
 | Embedding model | 所需嵌入模型是否已加载 |
 | Qdrant connectivity | Qdrant 端口和 API key 是否正常 |
 | Redis connectivity | Redis 连接是否正常 |
+| CodeShield interaction | CodeShield 安全框架兼容性检查 |
 
 Output uses `[PASS]` / `[FAIL]` / `[WARN]` indicators.
 
 输出使用 `[PASS]` / `[FAIL]` / `[WARN]` 标识每项状态。
-
-**Common fix for proxy environments / 代理环境常见修复：**
-
-If running behind CodeShield or a corporate proxy, ensure `.memory_env` contains:
-
-在 CodeShield 或企业代理环境下，确保 `.memory_env` 包含：
-
-```bash
-export NO_PROXY=127.0.0.1,localhost,10.0.0.0/8,::1
-export no_proxy=127.0.0.1,localhost,10.0.0.0/8,::1
-```
 
 ---
 
@@ -161,9 +206,9 @@ template: `templates/.memory_env.example`.
 | `QDRANT_COLLECTION` | Memory collection name (default: `kimi_memories`) |
 | `TR_COLLECTION` | True Recall collection (default: `true_recall`) |
 | `OLLAMA_URL` | Ollama API endpoint / Ollama 地址 |
-| `EMBEDDING_MODEL` | Embedding model name / 嵌入模型名称 |
+| `EMBEDDING_MODEL` | Jarvis embedding model / Jarvis 嵌入模型名称 |
 | `CURATION_MODEL` | LLM for memory curation / 记忆整理模型 |
-| `QDRANT_API_KEY` | Optional Qdrant auth key / 可选认证密钥 |
+| `QDRANT_API_KEY` | Loaded from CodeShield (auto) or set manually / 从 CodeShield 加载或手动设置 |
 | `NO_PROXY` / `no_proxy` | Proxy bypass list / 代理绕过列表 |
 
 ---
@@ -192,6 +237,23 @@ template: `templates/.memory_env.example`.
 | `mem_retrieve.py` | Retrieve memories from Redis / 读取 Redis 记忆 |
 | `search_mem.py` | Search Redis memory store / 搜索 Redis 记忆 |
 | `cron_backup.py` | Scheduled Redis backup / 定时备份 |
+
+---
+
+## CodeShield Integration / CodeShield 集成
+
+When CODE SHIELD V3.0.11+ is installed, Jarvis Memory automatically:
+
+安装 CODE SHIELD V3.0.11+ 后，Jarvis Memory 自动：
+
+1. **Loads `QDRANT_API_KEY` from CodeShield-managed tmpfs** (`/run/openclaw-memory/secrets.env`) — no plaintext key in `~/.memory_env`
+   从 CodeShield 管理的 tmpfs 加载密钥——`~/.memory_env` 不存储明文密钥
+
+2. **Bypasses Squid proxy for local services** via `NO_PROXY=127.0.0.1,localhost` — Ollama, Qdrant, Redis connections go direct
+   通过 `NO_PROXY` 绕过 Squid 代理——Ollama、Qdrant、Redis 直连
+
+3. **Configures OpenClaw memorySearch** to use local Ollama (`qwen3-embedding:4b`) — avoids iptables blocking of external embedding APIs
+   配置 OpenClaw memorySearch 使用本地 Ollama——避免 iptables 阻断外部嵌入 API
 
 ---
 

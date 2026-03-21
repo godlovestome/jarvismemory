@@ -1,4 +1,4 @@
-﻿# Jarvis Memory + True Recall
+# Jarvis Memory + True Recall
 
 export WORKSPACE_DIR="$HOME/.openclaw/workspace"
 export OPENCLAW_WORKSPACE="$HOME/.openclaw/workspace"
@@ -25,6 +25,9 @@ export MEMORY_INITIALIZED="true"
 export NO_PROXY="127.0.0.1,localhost,10.0.0.0/8"
 export no_proxy="127.0.0.1,localhost,10.0.0.0/8"
 
-# Qdrant API key — set this when CodeShield has enabled Qdrant authentication
-# (lib/03-qdrant.sh sets QDRANT__SERVICE__API_KEY). Leave empty if auth is off.
-export QDRANT_API_KEY=""
+# QDRANT_API_KEY managed by CodeShield — sourced from restricted path (root:openclaw 640)
+# If CodeShield is not installed, set QDRANT_API_KEY directly here instead.
+if [ -f /run/openclaw-memory/secrets.env ]; then
+  . /run/openclaw-memory/secrets.env
+  export QDRANT_API_KEY
+fi
