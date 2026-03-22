@@ -32,10 +32,15 @@ def discover_session_dirs(explicit_dir: Optional[str] = None) -> List[Path]:
         path = Path(explicit_dir).expanduser()
         return [path] if path.is_dir() else []
 
+    default_home_sessions = Path.home() / ".openclaw" / "agents" / "main" / "sessions"
+    default_service_sessions = Path("/var/lib/openclaw-svc/.openclaw/agents/main/sessions")
+
     candidates = [
         os.getenv("OPENCLAW_SERVICE_SESSIONS_DIR", ""),
         os.getenv("OPENCLAW_SESSIONS_DIR", ""),
         os.getenv("OPENCLAW_HOME_SESSIONS_DIR", ""),
+        str(default_service_sessions),
+        str(default_home_sessions),
     ]
 
     paths = [Path(value).expanduser() for value in candidates if value]
