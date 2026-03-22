@@ -1,21 +1,25 @@
-# Jarvis Memory v2.0.2
+# Jarvis Memory v2.0.3
 
 **Persistent Memory System for OpenClaw AI Agents**  
-**?? OpenClaw AI Agent ????????**
+**面向 OpenClaw AI Agent 的持久记忆系统**
 
-Jarvis Memory + True Recall is a persistent, cross-session memory layer that runs independently from OpenClaw's built-in `memory_search`. It uses Qdrant for vector storage, Ollama for local embeddings and generation, and Redis for short-term buffering.
+## Purpose / 目标
 
-Jarvis Memory + True Recall ???? OpenClaw ?? `memory_search` ????????????? Qdrant ???????Ollama ????????????Redis ???????
+Jarvis Memory + True Recall is a persistent, cross-session memory layer that runs independently from OpenClaw built-in retrieval. It uses Qdrant for vector storage, Ollama for local embeddings and generation, and Redis for short-term buffering.
 
-**Version focus / ?????v2.0.2**  
-Clarifies coexistence with OpenClaw's QMD backend: QMD can serve built-in retrieval while Jarvis Memory continues to manage long-term memory independently.  
-??? OpenClaw QMD ????????QMD ????????? Jarvis Memory ???????????
+Jarvis Memory + True Recall 是独立于 OpenClaw 内置检索之外的跨会话持久记忆层。它使用 Qdrant 进行向量存储，使用 Ollama 提供本地 embedding 与生成，使用 Redis 做短期缓冲。
 
----
+**Version focus / 版本重点：v2.0.3**
 
-## Quick Start / ????
+- Repairs README and changelog Chinese text as clean UTF-8 bilingual docs.
+- Keeps the documented coexistence model with OpenClaw QMD retrieval.
 
-### Fresh Install / ????
+- 修复 README 与 changelog 的中文乱码，统一为 UTF-8 双语文档。
+- 保留并明确说明与 OpenClaw QMD 检索并存的运行方式。
+
+## Quick Start / 快速开始
+
+### Fresh Install / 全新安装
 
 ```bash
 git clone https://github.com/godlovestome/jarvismemory.git
@@ -23,97 +27,67 @@ cd jarvismemory
 sudo bash bootstrap/bootstrap.sh
 ```
 
-### Lossless Update / ????
+### Lossless Update / 无损更新
 
 ```bash
 cd ~/jarvismemory && git pull && sudo bash bootstrap/update.sh
 ```
 
-### OpenClaw Upgrade Safety / OpenClaw ??????
+This update path does not wipe existing memory data, Qdrant state, Redis state, `.memory_env`, or CODE SHIELD integration.
 
-```bash
-curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard
-sudo bash bootstrap/update.sh
-```
+这条更新路径不会清空已有记忆数据、Qdrant 状态、Redis 状态、`.memory_env` 或 CODE SHIELD 集成。
 
-This updates OpenClaw code only. It does not wipe Jarvis Memory data, Qdrant/Redis state, `.memory_env`, or Codeshield integration.  
-??????? OpenClaw ??????? Jarvis Memory ???Qdrant/Redis ???`.memory_env`?????? Codeshield ???
+## Coexistence with QMD / 与 QMD 的并存关系
 
----
+Jarvis Memory and OpenClaw QMD retrieval can run together:
 
-## Coexistence Model / ????
+Jarvis Memory 与 OpenClaw 的 QMD 检索可以同时存在：
 
-Two memory systems can coexist:
-?????????????
+| Item / 项目 | OpenClaw built-in retrieval | Jarvis Memory + True Recall |
+| --- | --- | --- |
+| Backend / 后端 | `memory_search` or `memory.qmd` | Qdrant + Redis + managed workspace |
+| Primary role / 主要职责 | session retrieval / 会话检索 | long-term memory / 长期记忆 |
+| Storage / 存储 | SQLite or QMD index | Qdrant / Redis / workspace files |
+| Update path / 更新路径 | OpenClaw or custom_qmd | `bootstrap/update.sh` |
 
-| Item / ?? | OpenClaw built-in retrieval | Jarvis Memory + True Recall |
-|---|---|---|
-| Backend / ?? | `memory_search` or `memory.qmd` | Qdrant + Redis + curated workspace |
-| Scope / ?? | ????????? | ??????? |
-| Storage / ?? | SQLite / QMD index | Qdrant / Redis / workspace files |
-| Update path / ???? | OpenClaw or custom_qmd | `bootstrap/update.sh` |
+QMD can serve OpenClaw built-in retrieval without replacing Jarvis Memory.
 
-QMD can now be used for OpenClaw's built-in retrieval without replacing Jarvis Memory.  
-????? QMD ?? OpenClaw ???????????? Jarvis Memory?
+QMD 可以承担 OpenClaw 的内置检索，但不会替代 Jarvis Memory。
 
----
-
-## What Bootstrap Does / Bootstrap ????
+## What Bootstrap Does / Bootstrap 会做什么
 
 1. Install host dependencies
 2. Start Redis and Qdrant with Docker
 3. Validate Ollama and pull required models
 4. Sync managed workspace files
 5. Write `.memory_env`
-6. Configure timezone and cron jobs
-7. Configure OpenClaw `memorySearch` for local Ollama
-8. Run a final audit
+6. Configure cron jobs and maintenance tasks
+7. Keep service runtime files aligned with OpenClaw / CODE SHIELD
 
-1. ???????
-2. ?? Docker ?? Redis ? Qdrant
-3. ?? Ollama ???????
-4. ???? workspace ??
-5. ?? `.memory_env`
-6. ?????????
-7. ? OpenClaw `memorySearch` ???? Ollama
-8. ??????
+1. 安装宿主机依赖
+2. 通过 Docker 启动 Redis 和 Qdrant
+3. 检查 Ollama 并拉取所需模型
+4. 同步受管 workspace 文件
+5. 写入 `.memory_env`
+6. 配置 cron 任务与维护任务
+7. 保持与 OpenClaw / CODE SHIELD 的运行时文件对齐
 
----
-
-## Codeshield Integration / Codeshield ??
-
-When CODE SHIELD is present, Jarvis Memory automatically:
-???? CODE SHIELD ??Jarvis Memory ????
-
-- load `QDRANT_API_KEY` from a Codeshield-managed runtime secret file
-- keep local-service access working with `NO_PROXY`
-- mirror the managed workspace into the isolated `openclaw-svc` runtime
-- stay compatible with OpenClaw QMD retrieval running in parallel
-
-- ? Codeshield ???????????? `QDRANT_API_KEY`
-- ?? `NO_PROXY` ??????????
-- ??? workspace ???????? `openclaw-svc`
-- ?????? OpenClaw QMD ??????
-
----
-
-## Diagnose / ????
+## Recommended Operations / 推荐操作
 
 ```bash
-sudo bash bootstrap/diagnose.sh
+sudo bash bootstrap/bootstrap.sh
+sudo bash bootstrap/update.sh
+docker ps
+redis-cli ping
+curl http://127.0.0.1:6333/collections
 ```
 
-It checks proxy settings, local Ollama, embedding readiness, Qdrant, Redis, and Codeshield interaction.  
-??????????? Ollama?embedding ?????Qdrant?Redis??? Codeshield ?????
+## Notes / 说明
 
----
+- Update OpenClaw independently when needed.
+- Keep secrets under CODE SHIELD when CODE SHIELD is installed.
+- Use `bootstrap/update.sh` for production-safe maintenance.
 
-## Notes / ??
-
-- Jarvis Memory remains the source of truth for long-term memory deployment.
-- OpenClaw can be updated independently.
-- Re-running bootstrap or update restores managed files and schedules.
-
-- Jarvis Memory ??????????????
-- OpenClaw ???????
-- ???? bootstrap ? update ??????????????
+- 需要时可以独立升级 OpenClaw。
+- 如果已经安装 CODE SHIELD，请继续让密钥由 CODE SHIELD 接管。
+- 生产环境维护请优先使用 `bootstrap/update.sh`。

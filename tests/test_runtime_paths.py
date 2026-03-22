@@ -28,8 +28,8 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('build_memory_env "${SERVICE_WORKSPACE_DIR}" "${SERVICE_SESSIONS_DIR}"', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
-        self.assertIn('Jarvis Memory v2.0.2', read_text(README))
-        self.assertIn('2.0.2', read_text(CHANGELOG))
+        self.assertIn('Jarvis Memory v2.0.3', read_text(README))
+        self.assertIn('2.0.3', read_text(CHANGELOG))
         self.assertIn('bootstrap/update.sh', read_text(README))
 
 
