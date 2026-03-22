@@ -72,6 +72,9 @@ sync_workspace
 log "Regenerating environment files (secrets preserved)"
 write_memory_env
 
+log "Refreshing read-only access to CodeShield service sessions"
+configure_service_session_access
+
 log "Regenerating cron block"
 configure_cron
 

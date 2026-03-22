@@ -29,12 +29,16 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('export OPENCLAW_HOME_SESSIONS_DIR="${home_sessions_dir}"', text)
         self.assertIn('export OPENCLAW_SERVICE_SESSIONS_DIR="${service_sessions_dir}"', text)
         self.assertIn('build_memory_env "${SERVICE_WORKSPACE_DIR}" "${SERVICE_SESSIONS_DIR}" "${SESSIONS_DIR}" "${SERVICE_SESSIONS_DIR}"', text)
+        self.assertIn('configure_service_session_access()', text)
+        self.assertIn('setfacl -m "u:${OPENCLAW_USER}:x"', text)
+        self.assertIn('setfacl -d -m "u:${OPENCLAW_USER}:rx" "${SERVICE_SESSIONS_DIR}"', text)
 
     def test_audit_reports_home_and_service_session_dirs(self) -> None:
         text = read_text(AUDIT)
         self.assertIn('OPENCLAW_HOME_SESSIONS_DIR', text)
         self.assertIn('OPENCLAW_SERVICE_SESSIONS_DIR', text)
         self.assertIn("find \"${dir}\" -maxdepth 1 -name '*.jsonl'", text)
+        self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
         self.assertIn('Jarvis Memory v2.0.4', read_text(README))

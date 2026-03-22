@@ -97,6 +97,13 @@ for dir in "${OPENCLAW_SERVICE_SESSIONS_DIR:-}" "${OPENCLAW_HOME_SESSIONS_DIR:-}
     echo "MISS ${dir}"
   fi
 done
+if [[ -n "${OPENCLAW_SERVICE_SESSIONS_DIR:-}" ]] && [[ -d "${OPENCLAW_SERVICE_SESSIONS_DIR}" ]]; then
+  if sudo -u "${OPENCLAW_USER}" test -r "${OPENCLAW_SERVICE_SESSIONS_DIR}" 2>/dev/null; then
+    echo "OK   ${OPENCLAW_USER} can read service session directory"
+  else
+    echo "WARN ${OPENCLAW_USER} cannot read service session directory"
+  fi
+fi
 echo
 
 echo "--- 8. Cron ---"

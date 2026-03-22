@@ -132,7 +132,7 @@ require_root() {
 install_host_deps() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
-  apt-get install -y ca-certificates curl gnupg lsb-release rsync redis-tools python3 python3-pip python3-venv
+  apt-get install -y ca-certificates curl gnupg lsb-release rsync redis-tools python3 python3-pip python3-venv acl
 
   if ! command -v docker >/dev/null 2>&1; then
     apt-get install -y docker.io docker-compose-v2 || apt-get install -y docker.io docker-compose-plugin
@@ -312,6 +312,34 @@ configure_logs() {
   chown "${OPENCLAW_USER}:${OPENCLAW_USER}" /var/log/memory-capture.log /var/log/memory-backup.log /var/log/true-recall-curator.log /var/log/qdrant-daily-backup.log
 }
 
+configure_service_session_access() {
+  has_service_runtime || return 0
+
+  if ! command -v setfacl >/dev/null 2>&1; then
+    log "WARN: setfacl not available; cannot grant ${OPENCLAW_USER} read-only access to service sessions"
+    return 0
+  fi
+
+  local traverse_paths=(
+    "${SERVICE_OPENCLAW_HOME}"
+    "${SERVICE_OPENCLAW_HOME}/.openclaw"
+    "${SERVICE_OPENCLAW_HOME}/.openclaw/agents"
+    "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main"
+  )
+
+  local path
+  for path in "${traverse_paths[@]}"; do
+    [[ -d "${path}" ]] || continue
+    setfacl -m "u:${OPENCLAW_USER}:x" "${path}"
+  done
+
+  if [[ -d "${SERVICE_SESSIONS_DIR}" ]]; then
+    setfacl -m "u:${OPENCLAW_USER}:rx" "${SERVICE_SESSIONS_DIR}"
+    setfacl -d -m "u:${OPENCLAW_USER}:rx" "${SERVICE_SESSIONS_DIR}"
+    find "${SERVICE_SESSIONS_DIR}" -maxdepth 1 -type f \( -name '*.jsonl' -o -name 'sessions.json' \) -exec setfacl -m "u:${OPENCLAW_USER}:r" {} +
+  fi
+}
+
 configure_cron() {
   local tmpfile
   tmpfile="$(mktemp)"
@@ -403,6 +431,9 @@ main() {
 
   log "Configuring logs"
   configure_logs
+
+  log "Granting read-only access to service sessions"
+  configure_service_session_access
 
   log "Configuring cron"
   configure_cron
