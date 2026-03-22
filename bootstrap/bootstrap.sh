@@ -11,8 +11,12 @@ EMBEDDING_MODEL="${EMBEDDING_MODEL:-mxbai-embed-large}"
 CURATION_MODEL="${CURATION_MODEL:-qwen3.5:35b-a3b}"
 OPENCLAW_MEMORYSEARCH_MODEL="${OPENCLAW_MEMORYSEARCH_MODEL:-qwen3-embedding:4b}"
 OPENCLAW_HOME="${OPENCLAW_HOME:-/home/${OPENCLAW_USER}}"
+SERVICE_OPENCLAW_USER="${SERVICE_OPENCLAW_USER:-openclaw-svc}"
+SERVICE_OPENCLAW_HOME="${SERVICE_OPENCLAW_HOME:-/var/lib/${SERVICE_OPENCLAW_USER}}"
 WORKSPACE_DIR="${WORKSPACE_DIR:-${OPENCLAW_HOME}/.openclaw/workspace}"
 SESSIONS_DIR="${SESSIONS_DIR:-${OPENCLAW_HOME}/.openclaw/agents/main/sessions}"
+SERVICE_WORKSPACE_DIR="${SERVICE_WORKSPACE_DIR:-${SERVICE_OPENCLAW_HOME}/.openclaw/workspace}"
+SERVICE_SESSIONS_DIR="${SERVICE_SESSIONS_DIR:-${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions}"
 PROJECT_DIR="${WORKSPACE_DIR}/.projects/true-recall"
 MEM_ENV_HOME="${OPENCLAW_HOME}/.memory_env"
 MEM_ENV_WORKSPACE="${WORKSPACE_DIR}/.memory_env"
@@ -29,6 +33,62 @@ die() { printf '[bootstrap] ERROR: %s\n' "$*" >&2; exit 1; }
 
 run_as_openclaw() {
   su - "${OPENCLAW_USER}" -c "$*"
+}
+
+has_service_runtime() {
+  id "${SERVICE_OPENCLAW_USER}" >/dev/null 2>&1 && [[ -d "${SERVICE_OPENCLAW_HOME}/.openclaw" ]]
+}
+
+build_memory_env() {
+  local workspace_dir="$1"
+  local sessions_dir="$2"
+  cat <<EOF
+export WORKSPACE_DIR="${workspace_dir}"
+export OPENCLAW_WORKSPACE="${workspace_dir}"
+export OPENCLAW_SESSIONS_DIR="${sessions_dir}"
+
+export USER_ID="${USER_ID}"
+
+export REDIS_HOST="127.0.0.1"
+export REDIS_PORT="6379"
+
+export QDRANT_URL="http://127.0.0.1:6333"
+export QDRANT_COLLECTION="kimi_memories"
+export TR_COLLECTION="true_recall"
+
+export OLLAMA_URL="http://127.0.0.1:11434"
+export EMBEDDING_MODEL="${EMBEDDING_MODEL}"
+export CURATION_MODEL="${CURATION_MODEL}"
+
+export MEMORY_INITIALIZED="true"
+export NO_PROXY="127.0.0.1,localhost,10.0.0.0/8"
+export no_proxy="127.0.0.1,localhost,10.0.0.0/8"
+
+if [ -f /run/openclaw-memory/secrets.env ]; then
+  . /run/openclaw-memory/secrets.env
+  export QDRANT_API_KEY
+fi
+EOF
+}
+
+sync_repo_workspace() {
+  local target_workspace="$1"
+  local owner="$2"
+
+  install -d -o "$owner" -g "$owner" "$target_workspace"
+  install -d -o "$owner" -g "$owner" "$target_workspace/skills"
+  install -d -o "$owner" -g "$owner" "$target_workspace/docs"
+  install -d -o "$owner" -g "$owner" "$target_workspace/config"
+  install -d -o "$owner" -g "$owner" "$target_workspace/.projects"
+  install -d -o "$owner" -g "$owner" "$target_workspace/memory"
+
+  rsync -a "${REPO_ROOT}/workspace/skills/" "$target_workspace/skills/"
+  rsync -a "${REPO_ROOT}/workspace/docs/" "$target_workspace/docs/"
+  rsync -a "${REPO_ROOT}/workspace/config/" "$target_workspace/config/"
+  rsync -a "${REPO_ROOT}/workspace/.projects/true-recall/" "$target_workspace/.projects/true-recall/"
+  install -m 0644 "${REPO_ROOT}/workspace/HEARTBEAT.md" "$target_workspace/HEARTBEAT.md"
+  chmod +x "$target_workspace/skills/qdrant-memory/scripts/sliding_backup.sh"
+  chown -R "$owner:$owner" "$target_workspace/skills" "$target_workspace/docs" "$target_workspace/config" "$target_workspace/.projects" "$target_workspace/HEARTBEAT.md"
 }
 
 prompt_if_missing() {
@@ -105,45 +165,21 @@ backup_if_exists() {
 
 write_memory_env() {
   local env_body
-  env_body=$(cat <<EOF
-export WORKSPACE_DIR="${WORKSPACE_DIR}"
-export OPENCLAW_WORKSPACE="${WORKSPACE_DIR}"
-export OPENCLAW_SESSIONS_DIR="${SESSIONS_DIR}"
-
-export USER_ID="${USER_ID}"
-
-export REDIS_HOST="127.0.0.1"
-export REDIS_PORT="6379"
-
-export QDRANT_URL="http://127.0.0.1:6333"
-export QDRANT_COLLECTION="kimi_memories"
-export TR_COLLECTION="true_recall"
-
-export OLLAMA_URL="http://127.0.0.1:11434"
-export EMBEDDING_MODEL="${EMBEDDING_MODEL}"
-export CURATION_MODEL="${CURATION_MODEL}"
-
-export MEMORY_INITIALIZED="true"
-
-# Proxy bypass — prevents Python urllib and Node.js from routing local service
-# calls (Ollama, Qdrant, Redis) through Squid when CodeShield is active.
-# Squid blocks non-standard ports (11434, 6333, 6379) by default.
-export NO_PROXY="127.0.0.1,localhost,10.0.0.0/8"
-export no_proxy="127.0.0.1,localhost,10.0.0.0/8"
-
-# QDRANT_API_KEY managed by CodeShield — sourced from restricted path (root:openclaw 640)
-# If CodeShield is not installed, set QDRANT_API_KEY directly here instead.
-if [ -f /run/openclaw-memory/secrets.env ]; then
-  . /run/openclaw-memory/secrets.env
-  export QDRANT_API_KEY
-fi
-EOF
-)
+  env_body=$(build_memory_env "${WORKSPACE_DIR}" "${SESSIONS_DIR}")
 
   printf '%s\n' "${env_body}" > "${MEM_ENV_HOME}"
   printf '%s\n' "${env_body}" > "${MEM_ENV_WORKSPACE}"
   chown "${OPENCLAW_USER}:${OPENCLAW_USER}" "${MEM_ENV_HOME}" "${MEM_ENV_WORKSPACE}"
   chmod 600 "${MEM_ENV_HOME}" "${MEM_ENV_WORKSPACE}"
+
+  if has_service_runtime; then
+    local mem_env_service_workspace="${SERVICE_WORKSPACE_DIR}/.memory_env"
+    local svc_env_body
+    svc_env_body=$(build_memory_env "${SERVICE_WORKSPACE_DIR}" "${SERVICE_SESSIONS_DIR}")
+    printf '%s\n' "${svc_env_body}" > "${mem_env_service_workspace}"
+    chown "${SERVICE_OPENCLAW_USER}:${SERVICE_OPENCLAW_USER}" "${mem_env_service_workspace}"
+    chmod 600 "${mem_env_service_workspace}"
+  fi
 
   if ! grep -Fq 'source ~/.memory_env' "${OPENCLAW_HOME}/.bashrc"; then
     printf '\n# Jarvis Memory\nsource ~/.memory_env\n' >> "${OPENCLAW_HOME}/.bashrc"
@@ -195,13 +231,11 @@ sync_workspace() {
   backup_if_exists "${WORKSPACE_DIR}/config/HEARTBEAT.md"
   backup_if_exists "${WORKSPACE_DIR}/docs/MEM_DIAGRAM.md"
 
-  rsync -a "${REPO_ROOT}/workspace/skills/" "${WORKSPACE_DIR}/skills/"
-  rsync -a "${REPO_ROOT}/workspace/docs/" "${WORKSPACE_DIR}/docs/"
-  rsync -a "${REPO_ROOT}/workspace/config/" "${WORKSPACE_DIR}/config/"
-  rsync -a "${REPO_ROOT}/workspace/.projects/true-recall/" "${WORKSPACE_DIR}/.projects/true-recall/"
-  install -m 0644 "${REPO_ROOT}/workspace/HEARTBEAT.md" "${WORKSPACE_DIR}/HEARTBEAT.md"
-  chmod +x "${WORKSPACE_DIR}/skills/qdrant-memory/scripts/sliding_backup.sh"
-  chown -R "${OPENCLAW_USER}:${OPENCLAW_USER}" "${WORKSPACE_DIR}/skills" "${WORKSPACE_DIR}/docs" "${WORKSPACE_DIR}/config" "${WORKSPACE_DIR}/.projects" "${WORKSPACE_DIR}/HEARTBEAT.md"
+  sync_repo_workspace "${WORKSPACE_DIR}" "${OPENCLAW_USER}"
+
+  if has_service_runtime; then
+    sync_repo_workspace "${SERVICE_WORKSPACE_DIR}" "${SERVICE_OPENCLAW_USER}"
+  fi
 }
 
 setup_python() {
