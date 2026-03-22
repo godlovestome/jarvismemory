@@ -42,10 +42,19 @@ has_service_runtime() {
 build_memory_env() {
   local workspace_dir="$1"
   local sessions_dir="$2"
+  local home_sessions_dir="${3:-$2}"
+  local service_sessions_dir="${4:-}"
+  local preferred_sessions_dir="${sessions_dir}"
+
+  if [[ -n "${service_sessions_dir}" ]]; then
+    preferred_sessions_dir="${service_sessions_dir}"
+  fi
   cat <<EOF
 export WORKSPACE_DIR="${workspace_dir}"
 export OPENCLAW_WORKSPACE="${workspace_dir}"
-export OPENCLAW_SESSIONS_DIR="${sessions_dir}"
+export OPENCLAW_SESSIONS_DIR="${preferred_sessions_dir}"
+export OPENCLAW_HOME_SESSIONS_DIR="${home_sessions_dir}"
+export OPENCLAW_SERVICE_SESSIONS_DIR="${service_sessions_dir}"
 
 export USER_ID="${USER_ID}"
 
@@ -165,7 +174,11 @@ backup_if_exists() {
 
 write_memory_env() {
   local env_body
-  env_body=$(build_memory_env "${WORKSPACE_DIR}" "${SESSIONS_DIR}")
+  local service_sessions_dir=""
+  if has_service_runtime; then
+    service_sessions_dir="${SERVICE_SESSIONS_DIR}"
+  fi
+  env_body=$(build_memory_env "${WORKSPACE_DIR}" "${SESSIONS_DIR}" "${SESSIONS_DIR}" "${service_sessions_dir}")
 
   printf '%s\n' "${env_body}" > "${MEM_ENV_HOME}"
   printf '%s\n' "${env_body}" > "${MEM_ENV_WORKSPACE}"
@@ -175,7 +188,7 @@ write_memory_env() {
   if has_service_runtime; then
     local mem_env_service_workspace="${SERVICE_WORKSPACE_DIR}/.memory_env"
     local svc_env_body
-    svc_env_body=$(build_memory_env "${SERVICE_WORKSPACE_DIR}" "${SERVICE_SESSIONS_DIR}")
+    svc_env_body=$(build_memory_env "${SERVICE_WORKSPACE_DIR}" "${SERVICE_SESSIONS_DIR}" "${SESSIONS_DIR}" "${SERVICE_SESSIONS_DIR}")
     printf '%s\n' "${svc_env_body}" > "${mem_env_service_workspace}"
     chown "${SERVICE_OPENCLAW_USER}:${SERVICE_OPENCLAW_USER}" "${mem_env_service_workspace}"
     chmod 600 "${mem_env_service_workspace}"

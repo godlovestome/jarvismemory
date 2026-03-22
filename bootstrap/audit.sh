@@ -79,7 +79,27 @@ for path in \
 done
 echo
 
-echo "--- 7. Cron ---"
+echo "--- 7. Session runtime ---"
+echo "OPENCLAW_SESSIONS_DIR=${OPENCLAW_SESSIONS_DIR:-<not set>}"
+echo "OPENCLAW_HOME_SESSIONS_DIR=${OPENCLAW_HOME_SESSIONS_DIR:-<not set>}"
+echo "OPENCLAW_SERVICE_SESSIONS_DIR=${OPENCLAW_SERVICE_SESSIONS_DIR:-<not set>}"
+
+for dir in "${OPENCLAW_SERVICE_SESSIONS_DIR:-}" "${OPENCLAW_HOME_SESSIONS_DIR:-}" "${OPENCLAW_SESSIONS_DIR:-}"; do
+  [[ -n "${dir}" ]] || continue
+  if [[ -d "${dir}" ]]; then
+    latest="$(find "${dir}" -maxdepth 1 -name '*.jsonl' -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)"
+    if [[ -n "${latest}" ]]; then
+      echo "OK   ${dir} -> latest $(basename "${latest}")"
+    else
+      echo "WARN ${dir} -> no .jsonl transcripts"
+    fi
+  else
+    echo "MISS ${dir}"
+  fi
+done
+echo
+
+echo "--- 8. Cron ---"
 crontab -l -u "${OPENCLAW_USER}" 2>/dev/null | grep -E 'cron_capture|cron_backup|sliding_backup|curate_memories' || true
 echo
 

@@ -44,6 +44,7 @@ The bootstrap script automatically handles:
 - timezone configuration
 - cron installation
 - final audit
+- CodeShield-aware session runtime selection
 
 `bootstrap/bootstrap.sh` 会自动完成：
 
@@ -57,6 +58,7 @@ The bootstrap script automatically handles:
 - 时区配置
 - cron 安装
 - 最终审计
+- 感知 CodeShield 的 session 运行时选择
 
 ## 3. What Still Needs Human Help / 仍需人工协助部分
 
@@ -269,6 +271,40 @@ Current default schedule:
 These times assume the host timezone is `America/Los_Angeles`.
 
 这些时间以宿主机时区 `America/Los_Angeles` 为基准。
+
+## 8.1 CodeShield Runtime Priority / CodeShield 运行时优先级
+
+When OpenClaw is isolated by CodeShield and the active conversations live under:
+
+```bash
+/var/lib/openclaw-svc/.openclaw/agents/main/sessions
+```
+
+Jarvis Memory will prefer that live runtime for cron capture and heartbeat append.
+
+If that runtime does not exist, it falls back to:
+
+```bash
+/home/openclaw/.openclaw/agents/main/sessions
+```
+
+This keeps True Recall gem pickup aligned with the real OpenClaw runtime without bypassing CodeShield.
+
+当 OpenClaw 由 CodeShield 隔离运行，并且活跃会话位于：
+
+```bash
+/var/lib/openclaw-svc/.openclaw/agents/main/sessions
+```
+
+Jarvis Memory 会在 cron capture 与 heartbeat append 中优先跟随该实时运行时。
+
+如果该运行时不存在，则会回退到：
+
+```bash
+/home/openclaw/.openclaw/agents/main/sessions
+```
+
+这样可以让 True Recall 的 gems 拾取与真实 OpenClaw 运行时保持一致，同时不绕过 CodeShield。
 
 ## 9. How We Prevent OpenClaw Updates From Overwriting This Stack / 如何防止 OpenClaw 更新覆盖这套部署
 

@@ -16,6 +16,12 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from session_runtime import discover_session_dirs, find_latest_transcript
+
 # Config
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -29,11 +35,10 @@ STATE_FILE = WORKSPACE / ".mem_last_turn"
 
 def get_session_transcript():
     """Find the current session JSONL file."""
-    files = list(SESSIONS_DIR.glob("*.jsonl"))
-    if not files:
-        return None
-    # Get most recently modified
-    return max(files, key=lambda p: p.stat().st_mtime)
+    session_dirs = discover_session_dirs()
+    if not session_dirs and SESSIONS_DIR.is_dir():
+        session_dirs = [SESSIONS_DIR]
+    return find_latest_transcript(session_dirs)
 
 def parse_turns_since(last_turn_num):
     """Extract conversation turns since last processed."""

@@ -1,93 +1,123 @@
-# Jarvis Memory v2.0.3
+# Jarvis Memory v2.0.4
 
-**Persistent Memory System for OpenClaw AI Agents**  
-**面向 OpenClaw AI Agent 的持久记忆系统**
+**Persistent Memory for OpenClaw**  
+**面向 OpenClaw 的持久记忆层**
 
 ## Purpose / 目标
 
-Jarvis Memory + True Recall is a persistent, cross-session memory layer that runs independently from OpenClaw built-in retrieval. It uses Qdrant for vector storage, Ollama for local embeddings and generation, and Redis for short-term buffering.
+Jarvis Memory + True Recall is a persistent, cross-session memory stack for OpenClaw. It uses Redis for short-term staging, Qdrant for long-term vector storage, and Ollama for local embedding plus curation.
 
-Jarvis Memory + True Recall 是独立于 OpenClaw 内置检索之外的跨会话持久记忆层。它使用 Qdrant 进行向量存储，使用 Ollama 提供本地 embedding 与生成，使用 Redis 做短期缓冲。
+Jarvis Memory + True Recall 是一套面向 OpenClaw 的跨会话持久记忆栈。它使用 Redis 做短期暂存，使用 Qdrant 做长期向量存储，使用 Ollama 做本地 embedding 与记忆提炼。
 
-**Version focus / 版本重点：v2.0.3**
+## Version Focus / 版本重点
 
-- Repairs README and changelog Chinese text as clean UTF-8 bilingual docs.
-- Keeps the documented coexistence model with OpenClaw QMD retrieval.
+`v2.0.4` fixes True Recall cron pickup under CodeShield-managed deployments:
 
-- 修复 README 与 changelog 的中文乱码，统一为 UTF-8 双语文档。
-- 保留并明确说明与 OpenClaw QMD 检索并存的运行方式。
+- Cron and heartbeat jobs now prefer the live `openclaw-svc` session runtime when CodeShield isolates OpenClaw.
+- Session discovery falls back safely to the classic `/home/openclaw` runtime when no service runtime exists.
+- Audit output now shows which session source is active, making cron troubleshooting easier.
+- README and changelog are kept as clean UTF-8 bilingual documents.
+
+`v2.0.4` 重点修复了 CodeShield 托管部署下 True Recall 的 cron 拾取问题：
+
+- 当 CodeShield 让 OpenClaw 运行在 `openclaw-svc` 隔离运行时中时，cron 与 heartbeat 会优先跟随该实时 session 源。
+- 如果不存在 service runtime，会安全回退到传统的 `/home/openclaw` 运行时。
+- `audit.sh` 现在会直接显示当前采用的 session 来源，便于排查 cron 与 gems 拾取问题。
+- README 与 changelog 继续保持为干净的 UTF-8 双语文档。
+
+## CodeShield Compatibility / 与 CodeShield 的兼容方式
+
+This repository is designed to run **inside** the CodeShield security model, not around it.
+
+- Secrets remain managed by CodeShield.
+- OpenClaw can continue running as `openclaw-svc`.
+- Jarvis Memory cron jobs only read the active session transcripts; they do not bypass CodeShield secret ownership or inject credentials into OpenClaw onboarding config.
+
+本仓库的设计目标是在 **CodeShield 安全框架之内** 运行，而不是绕过它。
+
+- 密钥继续由 CodeShield 接管。
+- OpenClaw 仍可继续以 `openclaw-svc` 运行。
+- Jarvis Memory 的 cron 任务只读取当前活跃 session transcript，不会绕过 CodeShield 的密钥托管，也不会把凭据重新写回 OpenClaw onboarding 配置。
 
 ## Quick Start / 快速开始
 
-### Fresh Install / 全新安装
+### Fresh Install / 一行代码全新安装
 
 ```bash
-git clone https://github.com/godlovestome/jarvismemory.git
-cd jarvismemory
-sudo bash bootstrap/bootstrap.sh
+git clone https://github.com/godlovestome/jarvismemory.git && cd jarvismemory && sudo bash bootstrap/bootstrap.sh
 ```
 
-### Lossless Update / 无损更新
+### Lossless Update / 一行代码无损更新
 
 ```bash
 cd ~/jarvismemory && git pull && sudo bash bootstrap/update.sh
 ```
 
-This update path does not wipe existing memory data, Qdrant state, Redis state, `.memory_env`, or CODE SHIELD integration.
+The lossless update path keeps:
 
-这条更新路径不会清空已有记忆数据、Qdrant 状态、Redis 状态、`.memory_env` 或 CODE SHIELD 集成。
+- existing Redis data
+- existing Qdrant collections and vectors
+- existing `.memory_env`
+- existing CodeShield-managed secrets
+- existing OpenClaw / QMD coexistence
 
-## Coexistence with QMD / 与 QMD 的并存关系
+无损更新路径会保留：
 
-Jarvis Memory and OpenClaw QMD retrieval can run together:
+- 现有 Redis 数据
+- 现有 Qdrant collection 与向量数据
+- 现有 `.memory_env`
+- 现有由 CodeShield 接管的密钥
+- 现有 OpenClaw / QMD 并存关系
 
-Jarvis Memory 与 OpenClaw 的 QMD 检索可以同时存在：
+## How It Works / 工作方式
 
-| Item / 项目 | OpenClaw built-in retrieval | Jarvis Memory + True Recall |
-| --- | --- | --- |
-| Backend / 后端 | `memory_search` or `memory.qmd` | Qdrant + Redis + managed workspace |
-| Primary role / 主要职责 | session retrieval / 会话检索 | long-term memory / 长期记忆 |
-| Storage / 存储 | SQLite or QMD index | Qdrant / Redis / workspace files |
-| Update path / 更新路径 | OpenClaw or custom_qmd | `bootstrap/update.sh` |
+1. `cron_capture.py` stages new session turns into Redis.
+2. `curate_memories.py` reads staged turns and extracts higher-value gems into `true_recall`.
+3. `cron_backup.py` flushes staged turns into `kimi_memories`.
+4. `sliding_backup.sh` keeps rolling file backups.
 
-QMD can serve OpenClaw built-in retrieval without replacing Jarvis Memory.
+1. `cron_capture.py` 将新的 session turn 暂存到 Redis。
+2. `curate_memories.py` 读取暂存 turn，并把高价值 gems 提炼进 `true_recall`。
+3. `cron_backup.py` 将暂存 turn 刷入 `kimi_memories`。
+4. `sliding_backup.sh` 负责滚动文件备份。
 
-QMD 可以承担 OpenClaw 的内置检索，但不会替代 Jarvis Memory。
+## Default Schedule / 默认调度
 
-## What Bootstrap Does / Bootstrap 会做什么
+- Every 5 minutes: `cron_capture.py`
+- `10:30`: `curate_memories.py`
+- `11:00`: `cron_backup.py`
+- `11:30`: `sliding_backup.sh`
 
-1. Install host dependencies
-2. Start Redis and Qdrant with Docker
-3. Validate Ollama and pull required models
-4. Sync managed workspace files
-5. Write `.memory_env`
-6. Configure cron jobs and maintenance tasks
-7. Keep service runtime files aligned with OpenClaw / CODE SHIELD
+- 每 5 分钟：`cron_capture.py`
+- `10:30`：`curate_memories.py`
+- `11:00`：`cron_backup.py`
+- `11:30`：`sliding_backup.sh`
 
-1. 安装宿主机依赖
-2. 通过 Docker 启动 Redis 和 Qdrant
-3. 检查 Ollama 并拉取所需模型
-4. 同步受管 workspace 文件
-5. 写入 `.memory_env`
-6. 配置 cron 任务与维护任务
-7. 保持与 OpenClaw / CODE SHIELD 的运行时文件对齐
+All times are based on the host timezone configured during bootstrap.
 
-## Recommended Operations / 推荐操作
+以上时间均以 bootstrap 配置的宿主机时区为准。
+
+## QMD Coexistence / 与 QMD 并存
+
+Jarvis Memory and OpenClaw QMD retrieval are complementary:
+
+- QMD serves document and knowledge-base retrieval for OpenClaw.
+- Jarvis Memory + True Recall preserves cross-session memory and curated gems.
+
+Jarvis Memory 与 OpenClaw QMD 检索是互补关系：
+
+- QMD 负责文档与知识库检索。
+- Jarvis Memory + True Recall 负责跨会话记忆与 gems 提炼。
+
+## Useful Commands / 常用命令
 
 ```bash
-sudo bash bootstrap/bootstrap.sh
-sudo bash bootstrap/update.sh
-docker ps
-redis-cli ping
-curl http://127.0.0.1:6333/collections
+sudo bash bootstrap/audit.sh
+redis-cli LLEN mem:$USER_ID
+tail -f /var/log/memory-capture.log
+tail -f /var/log/true-recall-curator.log
 ```
 
-## Notes / 说明
+## Changelog / 更新记录
 
-- Update OpenClaw independently when needed.
-- Keep secrets under CODE SHIELD when CODE SHIELD is installed.
-- Use `bootstrap/update.sh` for production-safe maintenance.
-
-- 需要时可以独立升级 OpenClaw。
-- 如果已经安装 CODE SHIELD，请继续让密钥由 CODE SHIELD 接管。
-- 生产环境维护请优先使用 `bootstrap/update.sh`。
+See [CHANGELOG.md](/D:/23_QMD/jarvismemory/CHANGELOG.md).

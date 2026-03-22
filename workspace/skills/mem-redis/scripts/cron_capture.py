@@ -31,6 +31,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from session_runtime import discover_session_dirs, find_latest_transcript
+
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 USER_ID = os.getenv("USER_ID", "yourname")
@@ -52,14 +58,6 @@ class ParsedMessage:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
-
-
-def find_latest_transcript(sessions_dir: Path) -> Optional[Path]:
-    files = list(sessions_dir.glob("*.jsonl"))
-    if not files:
-        return None
-    return max(files, key=lambda p: p.stat().st_mtime)
-
 
 def load_state() -> Dict[str, Any]:
     if not STATE_FILE.exists():
@@ -183,12 +181,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Cron capture: append new transcript messages to Redis")
     parser.add_argument("--user-id", default=USER_ID)
     parser.add_argument("--include-thinking", action="store_true", help="Store thinking into mem_thinking:<user>")
-    parser.add_argument("--sessions-dir", default=str(DEFAULT_SESSIONS_DIR))
+    parser.add_argument("--sessions-dir", default=None)
     parser.add_argument("--dry-run", action="store_true", help="Parse + update state, but do not write to Redis")
     args = parser.parse_args()
 
-    sessions_dir = Path(args.sessions_dir)
-    transcript = find_latest_transcript(sessions_dir)
+    session_dirs = discover_session_dirs(args.sessions_dir)
+    if not session_dirs and args.sessions_dir is None:
+        session_dirs = [DEFAULT_SESSIONS_DIR] if DEFAULT_SESSIONS_DIR.is_dir() else []
+
+    transcript = find_latest_transcript(session_dirs)
     if not transcript:
         print("[cron_capture] No session transcripts found")
         return
@@ -223,7 +224,7 @@ def main() -> None:
     st[key] = {"offset": end_offset, "size": cur_size, "updated_at": _now_iso()}
     save_state(st)
 
-    print(f"[cron_capture] Appended {count} messages to Redis mem:{args.user_id}")
+    print(f"[cron_capture] Appended {count} messages to Redis mem:{args.user_id} from {transcript.parent}")
 
 
 if __name__ == "__main__":
