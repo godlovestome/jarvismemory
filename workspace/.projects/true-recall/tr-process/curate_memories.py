@@ -29,6 +29,8 @@ QDRANT_COLLECTION = os.getenv("TR_COLLECTION", "true_recall")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "mxbai-embed-large")
 CURATION_MODEL = os.getenv("CURATION_MODEL", "qwen3:14b")
+CURATION_TIMEOUT_SECONDS = int(os.getenv("CURATION_TIMEOUT_SECONDS", "1200"))
+CURATION_NUM_PREDICT = int(os.getenv("CURATION_NUM_PREDICT", "1200"))
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
@@ -90,9 +92,9 @@ def extract_gems_with_curator(turns: List[Dict[str, Any]]) -> List[Dict[str, Any
                 "```\n\n## Output\n"
             ),
             "stream": False,
-            "options": {"temperature": 0.1, "num_predict": 4000},
+            "options": {"temperature": 0.1, "num_predict": CURATION_NUM_PREDICT},
         },
-        timeout=600,
+        timeout=CURATION_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
 
@@ -166,6 +168,8 @@ def main() -> None:
     print(f"Hours: {args.hours}")
     print(f"Embedding model: {EMBEDDING_MODEL}")
     print(f"Curator model: {CURATION_MODEL}")
+    print(f"Curator timeout seconds: {CURATION_TIMEOUT_SECONDS}")
+    print(f"Curator max tokens: {CURATION_NUM_PREDICT}")
     print(f"Collection: {QDRANT_COLLECTION}")
     print()
 

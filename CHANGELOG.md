@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.0.6] - 2026-03-23
+
+### Fixed / 修复
+
+- Lowered the default True Recall curator generation ceiling for CPU-only deployments by introducing `CURATION_TIMEOUT_SECONDS=1200` and `CURATION_NUM_PREDICT=1200`.
+- Aligned `curate_memories.py`, `bootstrap.sh`, and `audit.sh` so fresh installs, lossless updates, and troubleshooting output all use the same safer defaults.
+
+- 为 CPU-only 部署引入了更稳的 True Recall curator 默认生成限制：`CURATION_TIMEOUT_SECONDS=1200` 与 `CURATION_NUM_PREDICT=1200`。
+- 对齐了 `curate_memories.py`、`bootstrap.sh` 与 `audit.sh` 的默认值，使全新安装、无损更新与排障输出保持一致。
+
 ## [2.0.5] - 2026-03-23
 
 ### Fixed / 修复

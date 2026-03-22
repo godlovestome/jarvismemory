@@ -39,6 +39,8 @@ for model in "${EMBEDDING_MODEL:-mxbai-embed-large}" "${CURATION_MODEL:-qwen3:14
     echo "MISS ${model}"
   fi
 done
+echo "CURATION_TIMEOUT_SECONDS=${CURATION_TIMEOUT_SECONDS:-1200}"
+echo "CURATION_NUM_PREDICT=${CURATION_NUM_PREDICT:-1200}"
 echo
 
 echo "--- 4. Qdrant collections ---"

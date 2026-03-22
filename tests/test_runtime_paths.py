@@ -27,6 +27,8 @@ class RuntimePathTests(unittest.TestCase):
         text = read_text(BOOTSTRAP)
         self.assertIn('DEFAULT_CURATION_MODEL="${DEFAULT_CURATION_MODEL:-qwen3:14b}"', text)
         self.assertIn('CURATION_MODEL="${CURATION_MODEL:-${DEFAULT_CURATION_MODEL}}"', text)
+        self.assertIn('CURATION_TIMEOUT_SECONDS="${CURATION_TIMEOUT_SECONDS:-1200}"', text)
+        self.assertIn('CURATION_NUM_PREDICT="${CURATION_NUM_PREDICT:-1200}"', text)
         self.assertIn('is_legacy_default_curation_model()', text)
         self.assertIn('qwen3.5:35b-a3b-nothink', text)
         self.assertIn('Replacing legacy curator default ${CURATION_MODEL} with ${DEFAULT_CURATION_MODEL}', text)
@@ -42,18 +44,22 @@ class RuntimePathTests(unittest.TestCase):
     def test_audit_reports_home_and_service_session_dirs(self) -> None:
         text = read_text(AUDIT)
         self.assertIn('CURATION_MODEL:-qwen3:14b', text)
+        self.assertIn('CURATION_TIMEOUT_SECONDS=${CURATION_TIMEOUT_SECONDS:-1200}', text)
+        self.assertIn('CURATION_NUM_PREDICT=${CURATION_NUM_PREDICT:-1200}', text)
         self.assertIn('OPENCLAW_HOME_SESSIONS_DIR', text)
         self.assertIn('OPENCLAW_SERVICE_SESSIONS_DIR', text)
         self.assertIn("find \"${dir}\" -maxdepth 1 -name '*.jsonl'", text)
         self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
-        self.assertIn('Jarvis Memory v2.0.5', read_text(README))
-        self.assertIn('2.0.5', read_text(CHANGELOG))
+        self.assertIn('Jarvis Memory v2.0.6', read_text(README))
+        self.assertIn('2.0.6', read_text(CHANGELOG))
         self.assertIn('bootstrap/update.sh', read_text(README))
 
     def test_curator_fallback_matches_bootstrap_default(self) -> None:
         self.assertIn('CURATION_MODEL = os.getenv("CURATION_MODEL", "qwen3:14b")', read_text(CURATOR))
+        self.assertIn('CURATION_TIMEOUT_SECONDS = int(os.getenv("CURATION_TIMEOUT_SECONDS", "1200"))', read_text(CURATOR))
+        self.assertIn('CURATION_NUM_PREDICT = int(os.getenv("CURATION_NUM_PREDICT", "1200"))', read_text(CURATOR))
 
 
 if __name__ == '__main__':
