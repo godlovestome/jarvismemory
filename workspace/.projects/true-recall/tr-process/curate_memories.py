@@ -28,7 +28,7 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
 QDRANT_COLLECTION = os.getenv("TR_COLLECTION", "true_recall")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "mxbai-embed-large")
-CURATION_MODEL = os.getenv("CURATION_MODEL", "qwen3.5:35b-a3b")
+CURATION_MODEL = os.getenv("CURATION_MODEL", "qwen3:14b")
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent

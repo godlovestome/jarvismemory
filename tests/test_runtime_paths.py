@@ -9,6 +9,7 @@ BOOTSTRAP = REPO_ROOT / "bootstrap" / "bootstrap.sh"
 README = REPO_ROOT / "README.md"
 CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 AUDIT = REPO_ROOT / "bootstrap" / "audit.sh"
+CURATOR = REPO_ROOT / "workspace" / ".projects" / "true-recall" / "tr-process" / "curate_memories.py"
 
 
 def read_text(path: Path) -> str:
@@ -50,6 +51,9 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('Jarvis Memory v2.0.5', read_text(README))
         self.assertIn('2.0.5', read_text(CHANGELOG))
         self.assertIn('bootstrap/update.sh', read_text(README))
+
+    def test_curator_fallback_matches_bootstrap_default(self) -> None:
+        self.assertIn('CURATION_MODEL = os.getenv("CURATION_MODEL", "qwen3:14b")', read_text(CURATOR))
 
 
 if __name__ == '__main__':
