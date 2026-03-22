@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.4
+# Jarvis Memory v2.0.5
 
 **Persistent Memory for OpenClaw**  
 **面向 OpenClaw 的持久记忆层**
@@ -11,19 +11,17 @@ Jarvis Memory + True Recall 是一套面向 OpenClaw 的跨会话持久记忆栈
 
 ## Version Focus / 版本重点
 
-`v2.0.4` fixes True Recall cron pickup under CodeShield-managed deployments:
+`v2.0.5` hardens CodeShield deployments in two ways:
 
-- Cron and heartbeat jobs now prefer the live `openclaw-svc` session runtime when CodeShield isolates OpenClaw.
-- Session discovery falls back safely to the classic `/home/openclaw` runtime when no service runtime exists.
-- Audit output now shows which session source is active, making cron troubleshooting easier.
-- README and changelog are kept as clean UTF-8 bilingual documents.
+- True Recall cron now follows the live `openclaw-svc` session runtime under CodeShield and falls back safely to `/home/openclaw` when no isolated runtime exists.
+- Legacy curator defaults such as `qwen3.5:35b-a3b` are auto-migrated to the lighter `qwen3:14b`, avoiding out-of-memory failures on typical 32 GB hosts.
+- README and changelog remain clean UTF-8 bilingual documents.
 
-`v2.0.4` 重点修复了 CodeShield 托管部署下 True Recall 的 cron 拾取问题：
+`v2.0.5` 进一步加固了 CodeShield 部署：
 
-- 当 CodeShield 让 OpenClaw 运行在 `openclaw-svc` 隔离运行时中时，cron 与 heartbeat 会优先跟随该实时 session 源。
-- 如果不存在 service runtime，会安全回退到传统的 `/home/openclaw` 运行时。
-- `audit.sh` 现在会直接显示当前采用的 session 来源，便于排查 cron 与 gems 拾取问题。
-- README 与 changelog 继续保持为干净的 UTF-8 双语文档。
+- True Recall 的 cron 现在会优先跟随 CodeShield 下真实运行的 `openclaw-svc` session 目录；如果没有隔离运行时，会安全回退到 `/home/openclaw`。
+- 像 `qwen3.5:35b-a3b` 这样的旧 curator 默认值会自动迁移到更轻量的 `qwen3:14b`，避免在常见 32 GB 主机上出现内存不足。
+- README 与 changelog 持续保持为干净的 UTF-8 双语文档。
 
 ## CodeShield Compatibility / 与 CodeShield 的兼容方式
 
@@ -36,8 +34,8 @@ This repository is designed to run **inside** the CodeShield security model, not
 本仓库的设计目标是在 **CodeShield 安全框架之内** 运行，而不是绕过它。
 
 - 密钥继续由 CodeShield 接管。
-- OpenClaw 仍可继续以 `openclaw-svc` 运行。
-- Jarvis Memory 的 cron 任务只读取当前活跃 session transcript，不会绕过 CodeShield 的密钥托管，也不会把凭据重新写回 OpenClaw onboarding 配置。
+- OpenClaw 可以继续以 `openclaw-svc` 身份运行。
+- Jarvis Memory 的 cron 只读取当前活跃的 session transcript，不会绕过 CodeShield 的密钥托管，也不会把凭据重新写回 OpenClaw onboarding 配置。
 
 ## Quick Start / 快速开始
 
@@ -66,7 +64,7 @@ The lossless update path keeps:
 - 现有 Redis 数据
 - 现有 Qdrant collection 与向量数据
 - 现有 `.memory_env`
-- 现有由 CodeShield 接管的密钥
+- 现有由 CodeShield 托管的密钥
 - 现有 OpenClaw / QMD 并存关系
 
 ## How It Works / 工作方式
@@ -80,6 +78,20 @@ The lossless update path keeps:
 2. `curate_memories.py` 读取暂存 turn，并把高价值 gems 提炼进 `true_recall`。
 3. `cron_backup.py` 将暂存 turn 刷入 `kimi_memories`。
 4. `sliding_backup.sh` 负责滚动文件备份。
+
+## Default Models / 默认模型
+
+- Embedding: `mxbai-embed-large`
+- Curator: `qwen3:14b`
+- OpenClaw memorySearch: `qwen3-embedding:4b`
+
+If an older deployment still carries the legacy curator default `qwen3.5:35b-a3b`, `bootstrap.sh` and `bootstrap/update.sh` will migrate it to `qwen3:14b` automatically unless you already set a different custom curator model.
+
+- Embedding：`mxbai-embed-large`
+- Curator：`qwen3:14b`
+- OpenClaw memorySearch：`qwen3-embedding:4b`
+
+如果旧部署仍保留 legacy curator 默认值 `qwen3.5:35b-a3b`，`bootstrap.sh` 与 `bootstrap/update.sh` 会自动把它迁移到 `qwen3:14b`；如果你已经显式指定了其他自定义 curator model，则不会覆盖。
 
 ## Default Schedule / 默认调度
 

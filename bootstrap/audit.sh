@@ -32,7 +32,7 @@ docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' 2>/dev/null || tr
 echo
 
 echo "--- 3. Ollama models ---"
-for model in "${EMBEDDING_MODEL:-mxbai-embed-large}" "${CURATION_MODEL:-qwen3.5:35b-a3b}"; do
+for model in "${EMBEDDING_MODEL:-mxbai-embed-large}" "${CURATION_MODEL:-qwen3:14b}"; do
   if ollama list 2>/dev/null | awk '{print $1}' | grep -Eq "^${model}(:latest)?$"; then
     echo "OK   ${model}"
   else

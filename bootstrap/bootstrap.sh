@@ -8,7 +8,8 @@ OPENCLAW_USER="${OPENCLAW_USER:-openclaw}"
 TIMEZONE="${TIMEZONE:-America/Los_Angeles}"
 USER_ID="${USER_ID:-}"
 EMBEDDING_MODEL="${EMBEDDING_MODEL:-mxbai-embed-large}"
-CURATION_MODEL="${CURATION_MODEL:-qwen3.5:35b-a3b}"
+DEFAULT_CURATION_MODEL="${DEFAULT_CURATION_MODEL:-qwen3:14b}"
+CURATION_MODEL="${CURATION_MODEL:-${DEFAULT_CURATION_MODEL}}"
 OPENCLAW_MEMORYSEARCH_MODEL="${OPENCLAW_MEMORYSEARCH_MODEL:-qwen3-embedding:4b}"
 OPENCLAW_HOME="${OPENCLAW_HOME:-/home/${OPENCLAW_USER}}"
 SERVICE_OPENCLAW_USER="${SERVICE_OPENCLAW_USER:-openclaw-svc}"
@@ -37,6 +38,29 @@ run_as_openclaw() {
 
 has_service_runtime() {
   id "${SERVICE_OPENCLAW_USER}" >/dev/null 2>&1 && [[ -d "${SERVICE_OPENCLAW_HOME}/.openclaw" ]]
+}
+
+is_legacy_default_curation_model() {
+  case "${1:-}" in
+    qwen3.5:35b-a3b|qwen3.5:35b-a3b-nothink)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+normalize_curation_model() {
+  if [[ -z "${CURATION_MODEL:-}" ]]; then
+    CURATION_MODEL="${DEFAULT_CURATION_MODEL}"
+    return 0
+  fi
+
+  if is_legacy_default_curation_model "${CURATION_MODEL}"; then
+    log "Replacing legacy curator default ${CURATION_MODEL} with ${DEFAULT_CURATION_MODEL}"
+    CURATION_MODEL="${DEFAULT_CURATION_MODEL}"
+  fi
 }
 
 build_memory_env() {
@@ -418,6 +442,7 @@ main() {
   setup_python
 
   log "Writing environment files"
+  normalize_curation_model
   write_memory_env
 
   log "Ensuring Ollama models"
