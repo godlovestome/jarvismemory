@@ -29,6 +29,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('SERVICE_OPENCLAW_USER="${SERVICE_OPENCLAW_USER:-openclaw-svc}"', text)
         self.assertIn('SERVICE_WORKSPACE_DIR="${SERVICE_WORKSPACE_DIR:-${SERVICE_OPENCLAW_HOME}/.openclaw/workspace}"', text)
         self.assertIn('sync_repo_workspace "${SERVICE_WORKSPACE_DIR}" "${SERVICE_OPENCLAW_USER}"', text)
+        self.assertIn('if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then', text)
 
     def test_bootstrap_writes_service_memory_env_when_runtime_exists(self) -> None:
         text = read_text(BOOTSTRAP)
