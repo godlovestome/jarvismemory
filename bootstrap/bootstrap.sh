@@ -303,20 +303,28 @@ install_openclaw_true_recall_plugin() {
   local runtime_home="$2"
   local runtime_workspace="$3"
   local plugin_source="${runtime_workspace}/${OPENCLAW_PLUGIN_SOURCE_REL}"
+  local plugin_install_dir="${runtime_home}/.openclaw/extensions/memory-qdrant"
   local output
 
   [[ -d "${plugin_source}" ]] || die "Plugin source not found at ${plugin_source}"
 
+  install -d -o "${runtime_user}" -g "${runtime_user}" "$(dirname "${plugin_install_dir}")"
+
   if ! output="$(run_openclaw_cli_for_runtime "${runtime_user}" "${runtime_home}" "${runtime_workspace}" "plugins install '${plugin_source}'" 2>&1)"; then
     case "${output}" in
-      *"already installed"*|*"is already installed"*)
-        log "OpenClaw plugin memory-qdrant already installed for ${runtime_user}"
+      *"already installed"*|*"is already installed"*|*"plugin already exists"*)
+        log "OpenClaw plugin memory-qdrant already present for ${runtime_user}; refreshing installed copy"
         ;;
       *)
         printf '%s\n' "${output}" >&2
         die "Failed to install memory-qdrant plugin for ${runtime_user}"
         ;;
     esac
+  fi
+
+  if [[ -d "${plugin_install_dir}" ]]; then
+    rsync -a --delete "${plugin_source}/" "${plugin_install_dir}/"
+    chown -R "${runtime_user}:${runtime_user}" "${plugin_install_dir}"
   fi
 
   run_openclaw_cli_for_runtime "${runtime_user}" "${runtime_home}" "${runtime_workspace}" "plugins enable memory-qdrant" >/dev/null 2>&1 || true

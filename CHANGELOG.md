@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.15] - 2026-03-23
+
+### Added / Changed
+
+- Lossless update now treats `plugin already exists` as an in-place refresh path instead of a hard failure.
+- Existing OpenClaw extension installs are now refreshed by rsyncing the managed `memory-qdrant` source into the runtime extension directory for both `openclaw` and `openclaw-svc`.
+- This keeps the plugin current under CodeShield without deleting user data or breaking the existing OpenClaw plugin registration.
+
+### 新增 / 调整
+
+- 无损更新现在会把 `plugin already exists` 视为原地刷新路径，而不再当成硬失败退出。
+- 对于已经装过的 OpenClaw 扩展，安装脚本现在会把受管的 `memory-qdrant` 源码同步到运行时扩展目录，并同时覆盖 `openclaw` 与 `openclaw-svc`。
+- 这样可以在 CodeShield 框架下持续刷新插件代码，同时不删除用户数据，也不破坏现有的 OpenClaw 插件注册。
+
 ## [2.0.14] - 2026-03-23
 
 ### Added / Changed
