@@ -175,7 +175,7 @@ def store_gem_to_qdrant(gem: Dict[str, Any], user_id: str) -> bool:
         timeout=120,
     )
     response.raise_for_status()
-    return response.status_code == 200
+    return response.status_code in (200, 202)
 
 
 def main() -> None:

@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.11
+# Jarvis Memory v2.0.12
 
 **Persistent Memory for OpenClaw**  
 **面向 OpenClaw 的持久记忆层**
@@ -7,21 +7,23 @@
 
 Jarvis Memory + True Recall is a persistent cross-session memory stack for OpenClaw. It uses Redis for short-term staging, Qdrant for long-term vector storage, and Ollama for local embedding plus gem curation.
 
-Jarvis Memory + True Recall 是一套面向 OpenClaw 的跨会话持久记忆栈。它使用 Redis 做短期暂存，使用 Qdrant 做长期向量存储，使用 Ollama 做本地 embedding 与 gems 提炼。
+Jarvis Memory + True Recall 是一套面向 OpenClaw 的跨会话持久记忆栈。它使用 Redis 做短期暂存，使用 Qdrant 做长期向量存储，并使用 Ollama 负责本地 embedding 与 gems 提炼。
 
 ## Version Focus / 版本重点
 
-`v2.0.11` focuses on reliable True Recall storage and retrieval under CodeShield:
+`v2.0.12` focuses on reliable True Recall storage and retrieval under CodeShield:
 
-- `curate_memories.py` now sends the CodeShield-managed `QDRANT_API_KEY` when storing gems, so extracted gems no longer fail silently under protected Qdrant.
-- `bootstrap.sh` and `bootstrap/update.sh` now write the `memory-qdrant` auto-recall plugin config into both OpenClaw runtimes, pointing recall at `true_recall` with `mxbai-embed-large`.
+- `curate_memories.py` now treats Qdrant `202 Accepted` as a successful write, so gems acknowledged asynchronously are no longer reported as failed.
+- True Recall gem storage sends the CodeShield-managed `QDRANT_API_KEY` and waits for Qdrant acknowledgement.
+- `bootstrap.sh` and `bootstrap/update.sh` write the `memory-qdrant` auto-recall plugin config into both OpenClaw runtimes, pointing recall at `true_recall` with `mxbai-embed-large`.
 - The default curator model remains `qwen3.5:35b-a3b`, and legacy temporary fallback `qwen3:14b` is normalized back during bootstrap or update.
 - CodeShield-managed secrets stay outside `.memory_env` and continue to load only from `/run/openclaw-memory/secrets.env`.
 
-`v2.0.11` 重点修复 CodeShield 框架下 True Recall 的存储与检索链路：
+`v2.0.12` 重点修复 CodeShield 框架下 True Recall 的存储与检索链路：
 
-- `curate_memories.py` 现在会在写入 gems 时携带 CodeShield 托管的 `QDRANT_API_KEY`，避免受保护的 Qdrant 在后台静默拒绝写入。
-- `bootstrap.sh` 与 `bootstrap/update.sh` 现在会把 `memory-qdrant` auto-recall 插件配置写入两份 OpenClaw 运行时配置，使检索直接指向 `true_recall`，并使用 `mxbai-embed-large` 做查询 embedding。
+- `curate_memories.py` 现在会把 Qdrant 返回的 `202 Accepted` 视为成功写入，避免 gems 已被异步确认却仍显示 `Stored 0/x`。
+- True Recall 的 gems 写入会携带 CodeShield 托管的 `QDRANT_API_KEY`，并等待 Qdrant 明确确认。
+- `bootstrap.sh` 与 `bootstrap/update.sh` 会把 `memory-qdrant` auto-recall 插件配置写入两份 OpenClaw 运行时配置，使检索直接指向 `true_recall`，并使用 `mxbai-embed-large` 做查询 embedding。
 - 默认 curator 模型继续保持为 `qwen3.5:35b-a3b`，旧的临时回退模型 `qwen3:14b` 会在安装或更新时自动纠正回来。
 - CodeShield 托管的密钥不会写入 `.memory_env`，运行时仍只从 `/run/openclaw-memory/secrets.env` 加载。
 
@@ -54,137 +56,53 @@ git clone https://github.com/godlovestome/jarvismemory.git && cd jarvismemory &&
 ### Lossless Update / 一行代码无损更新
 
 ```bash
-cd ~/jarvismemory && git pull && sudo bash bootstrap/update.sh
+curl -fsSL https://raw.githubusercontent.com/godlovestome/jarvismemory/main/bootstrap/update.sh | sudo bash
 ```
 
 The lossless update path keeps:
 
-- existing Redis data
-- existing Qdrant collections and vectors
-- existing `.memory_env`
+- existing OpenClaw user parameters
 - existing CodeShield-managed secrets
-- existing OpenClaw / QMD coexistence
+- existing Redis / Qdrant data
+- existing cron schedule
 
 无损更新路径会保留：
 
-- 现有 Redis 数据
-- 现有 Qdrant collection 与向量数据
-- 现有 `.memory_env`
-- 现有由 CodeShield 托管的密钥
-- 现有 OpenClaw / QMD 并存关系
+- 现有 OpenClaw 用户参数
+- 现有 CodeShield 托管密钥
+- 现有 Redis / Qdrant 数据
+- 现有 cron 调度
 
-## How It Works / 工作方式
+## Runtime Behavior / 运行时行为
 
-1. `cron_capture.py` stages new session turns into Redis.
-2. `curate_memories.py` reads staged turns and extracts higher-value gems into `true_recall`.
-3. `cron_backup.py` flushes staged turns into `kimi_memories`.
+1. `cron_capture.py` captures recent OpenClaw turns from the active runtime session directory.
+2. The Redis buffer stores staged turns under `mem:<user_id>`.
+3. `curate_memories.py` extracts high-signal gems and stores them into `true_recall`.
 4. `memory-qdrant` auto-recall injects relevant gems from `true_recall` before replies.
-5. `sliding_backup.sh` keeps rolling file backups.
+5. Jarvis Memory backup jobs can still flush the same Redis source turns into the long-term memory pipeline.
 
-1. `cron_capture.py` 将新的 session turns 暂存到 Redis。
-2. `curate_memories.py` 读取暂存 turns，并把高价值 gems 提炼进 `true_recall`。
-3. `cron_backup.py` 将暂存 turns 刷入 `kimi_memories`。
+1. `cron_capture.py` 会从当前活跃运行时的 session 目录抓取最近对话。
+2. Redis 会把这些 turn 暂存到 `mem:<user_id>`。
+3. `curate_memories.py` 会提炼高价值 gems 并写入 `true_recall`。
 4. `memory-qdrant` auto-recall 会在回复前从 `true_recall` 注入相关 gems。
-5. `sliding_backup.sh` 负责滚动文件备份。
+5. Jarvis Memory 备份任务仍可继续把同一份 Redis 源 turn 刷入长期记忆流水线。
 
-## Default Models / 默认模型
+## Operations / 运维命令
 
-- Embedding: `mxbai-embed-large`
-- Curator: `qwen3.5:35b-a3b`
-- OpenClaw memorySearch: `qwen3-embedding:4b`
-- Curator timeout: `1200`
-- Curator max tokens: `1200`
-
-If a deployment still carries the temporary curator fallback `qwen3:14b`, `bootstrap.sh` and `bootstrap/update.sh` normalize it back to `qwen3.5:35b-a3b`.
-
-- Embedding：`mxbai-embed-large`
-- Curator：`qwen3.5:35b-a3b`
-- OpenClaw memorySearch：`qwen3-embedding:4b`
-- Curator 超时：`1200`
-- Curator 最大 tokens：`1200`
-
-如果部署仍保留临时回退模型 `qwen3:14b`，`bootstrap.sh` 与 `bootstrap/update.sh` 会自动恢复到 `qwen3.5:35b-a3b`。
-
-## Default Schedule / 默认调度
-
-- Every 5 minutes: `cron_capture.py`
-- `10:30`: `curate_memories.py`
-- `11:00`: `cron_backup.py`
-- `11:30`: `sliding_backup.sh`
-
-- 每 5 分钟：`cron_capture.py`
-- `10:30`：`curate_memories.py`
-- `11:00`：`cron_backup.py`
-- `11:30`：`sliding_backup.sh`
-
-All times are based on the host timezone configured during bootstrap.
-
-以上时间均以 bootstrap 配置的宿主机时区为准。
-
-## Ops Checks / 运维检查
-
-Use these commands to confirm pickup, gem storage, and recall wiring after deployment:
+### Rebuild True Recall Gems / 重建 True Recall gems
 
 ```bash
-crontab -l -u openclaw
-tail -f /var/log/memory-capture.log
-tail -f /var/log/true-recall-curator.log
-tail -f /var/log/memory-backup.log
-redis-cli LLEN mem:$USER_ID
-```
-
-部署后如果要确认拾取、gem 存储和 recall 接线是否正常，可以使用这些命令：
-
-```bash
-crontab -l -u openclaw
-tail -f /var/log/memory-capture.log
-tail -f /var/log/true-recall-curator.log
-tail -f /var/log/memory-backup.log
-redis-cli LLEN mem:$USER_ID
-```
-
-## Rebuild True Recall Gems / 重建 True Recall gems
-
-When you need to clear existing True Recall vectors and rebuild them under CodeShield, use:
-
-```bash
-cd ~/jarvismemory && git pull && sudo bash bootstrap/rebuild_true_recall.sh
-```
-
-This helper will:
-
-- keep CodeShield-managed secrets outside `.memory_env`
-- clear the staged Redis pickup buffer for the current `USER_ID`
-- remove old capture state files
-- recreate the `true_recall` collection
-- re-run `cron_capture.py`
-- re-run `curate_memories.py`
-
-当你需要在 CodeShield 框架下清空旧的 True Recall 向量并重新拾取 gems 时，使用：
-
-```bash
-cd ~/jarvismemory && git pull && sudo bash bootstrap/rebuild_true_recall.sh
-```
-
-该脚本会：
-
-- 保持 CodeShield 托管密钥继续留在 `.memory_env` 之外
-- 清空当前 `USER_ID` 的 Redis 暂存拾取缓冲
-- 删除旧的 capture 状态文件
-- 重建 `true_recall` collection
-- 重新执行 `cron_capture.py`
-- 重新执行 `curate_memories.py`
-
-## Useful Commands / 常用命令
-
-```bash
-sudo bash bootstrap/audit.sh
 sudo bash bootstrap/rebuild_true_recall.sh
-redis-cli LLEN mem:$USER_ID
-tail -f /var/log/memory-capture.log
-tail -f /var/log/true-recall-curator.log
 ```
 
-## Changelog / 更新记录
+### Manual Curator Run / 手动运行 curator
 
-See [CHANGELOG.md](/D:/23_QMD/jarvismemory/CHANGELOG.md).
+```bash
+sudo -u openclaw bash -lc 'source ~/.memory_env && cd /home/openclaw/.openclaw/workspace/.projects/true-recall && python3 tr-process/curate_memories.py --user-id "$USER_ID"'
+```
+
+### Inspect Redis Backlog / 查看 Redis 暂存队列
+
+```bash
+sudo -u openclaw bash -lc 'source ~/.memory_env && redis-cli LLEN mem:$USER_ID'
+```
