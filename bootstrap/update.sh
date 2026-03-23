@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# update.sh — Non-destructive in-place update of an existing Jarvis Memory deployment
+# update.sh - Non-destructive in-place update of an existing Jarvis Memory deployment
 #
-# Preserves all secrets and custom settings (USER_ID, QDRANT_API_KEY, OLLAMA_URL, etc.)
-# Only updates: Python scripts, config files, .memory_env content, cron block
-# Does NOT touch: Docker containers, Qdrant data, Redis data, system packages, Ollama models
+# Preserves user settings and existing data while refreshing the managed workspace files,
+# cron block, and generated .memory_env files.
+#
+# CodeShield-managed secrets stay outside .memory_env and continue to be sourced at runtime
+# from the protected /run/openclaw-memory/secrets.env path.
 #
 # One-liner usage:
 #   cd ~/jarvismemory && git pull && sudo bash bootstrap/update.sh
@@ -22,7 +24,6 @@ ENV_FILE="${OPENCLAW_HOME}/.memory_env"
 log()  { printf '[update] %s\n' "$*"; }
 die()  { printf '[update] ERROR: %s\n' "$*" >&2; exit 1; }
 
-# ── Guard: existing deployment must be present ────────────────────────────
 if [[ ! -f "${ENV_FILE}" ]]; then
   die "No existing deployment found at ${ENV_FILE}.
        For a fresh install run: sudo bash bootstrap/bootstrap.sh"
@@ -30,11 +31,9 @@ fi
 
 log "Found existing deployment: ${ENV_FILE}"
 
-# ── Load all current settings to preserve them ───────────────────────────
-# set -a exports every variable that gets defined/set, so sourcing .memory_env
-# exports USER_ID, QDRANT_API_KEY, OLLAMA_URL, etc. into the environment.
-# bootstrap.sh reads all of these from env vars, so write_memory_env() will
-# write them back unchanged.
+# Load current runtime values so the regenerated .memory_env keeps the same
+# workspace, URLs, models, and user id. If CodeShield is present, the sourced
+# file will continue to load protected secrets from /run/openclaw-memory/secrets.env.
 set -a
 # shellcheck disable=SC1090
 source "${ENV_FILE}"
@@ -46,20 +45,16 @@ log "  QDRANT_URL      = ${QDRANT_URL:-<not set>}"
 log "  OLLAMA_URL      = ${OLLAMA_URL:-<not set>}"
 log "  EMBEDDING_MODEL = ${EMBEDDING_MODEL:-<not set>}"
 if [[ -n "${QDRANT_API_KEY:-}" ]]; then
-  log "  QDRANT_API_KEY  = (set)"
+  log "  QDRANT_API_KEY  = (available via runtime env)"
 else
   log "  QDRANT_API_KEY  = (not set)"
 fi
 
-[[ -n "${USER_ID:-}" ]] || die "USER_ID is empty in ${ENV_FILE} — cannot update safely."
+[[ -n "${USER_ID:-}" ]] || die "USER_ID is empty in ${ENV_FILE} - cannot update safely."
 
-# ── Source bootstrap.sh to load function definitions ─────────────────────
-# The BASH_SOURCE guard at the bottom of bootstrap.sh prevents main() from
-# running when the file is sourced rather than executed directly.
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/bootstrap.sh"
 
-# ── Run only the safe update steps ───────────────────────────────────────
 log "Checking root"
 require_root
 
@@ -69,7 +64,7 @@ prepare_paths
 log "Syncing workspace scripts (backup created first)"
 sync_workspace
 
-log "Regenerating environment files (secrets preserved)"
+log "Regenerating environment files (CodeShield secret source preserved)"
 write_memory_env
 
 log "Refreshing read-only access to CodeShield service sessions"
@@ -86,6 +81,6 @@ WORKSPACE_DIR="${WORKSPACE_DIR}" \
 
 echo
 log "================================================================"
-log " Update complete — no containers were restarted, no data lost."
-log " Scripts updated from: $(git -C "${SCRIPT_DIR}/.." log -1 --format='%h %s' 2>/dev/null || echo 'unknown')"
+log "Update complete - no containers were restarted and no data was removed."
+log "Scripts updated from: $(git -C "${SCRIPT_DIR}/.." log -1 --format='%h %s' 2>/dev/null || echo 'unknown')"
 log "================================================================"

@@ -20,13 +20,13 @@ export CURATION_MODEL="qwen3.5:35b-a3b"
 export MEMORY_INITIALIZED="true"
 
 # Proxy bypass for internal/local services (required when CodeShield is active).
-# Prevents Python urllib and Node.js from routing Ollama/Qdrant/Redis calls
-# through the Squid proxy, which blocks non-standard ports (11434, 6333, 6379).
+# Prevents Python urllib and Node.js from routing Ollama, Qdrant, or Redis calls
+# through the Squid proxy, which blocks non-standard ports such as 11434, 6333, and 6379.
 export NO_PROXY="127.0.0.1,localhost,10.0.0.0/8"
 export no_proxy="127.0.0.1,localhost,10.0.0.0/8"
 
-# QDRANT_API_KEY managed by CodeShield — sourced from restricted path (root:openclaw 640)
-# If CodeShield is not installed, set QDRANT_API_KEY directly here instead.
+# QDRANT_API_KEY managed by CodeShield - sourced from restricted path.
+# If CodeShield is not installed, export QDRANT_API_KEY separately before running maintenance scripts.
 if [ -f /run/openclaw-memory/secrets.env ]; then
   . /run/openclaw-memory/secrets.env
   export QDRANT_API_KEY

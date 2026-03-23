@@ -9,6 +9,9 @@ BOOTSTRAP = REPO_ROOT / "bootstrap" / "bootstrap.sh"
 README = REPO_ROOT / "README.md"
 CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 AUDIT = REPO_ROOT / "bootstrap" / "audit.sh"
+UPDATE = REPO_ROOT / "bootstrap" / "update.sh"
+TEMPLATE_ENV = REPO_ROOT / "templates" / ".memory_env.example"
+REBUILD = REPO_ROOT / "bootstrap" / "rebuild_true_recall.sh"
 CURATOR = REPO_ROOT / "workspace" / ".projects" / "true-recall" / "tr-process" / "curate_memories.py"
 
 
@@ -52,9 +55,12 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
-        self.assertIn('Jarvis Memory v2.0.8', read_text(README))
-        self.assertIn('2.0.8', read_text(CHANGELOG))
+        self.assertIn('Jarvis Memory v2.0.9', read_text(README))
+        self.assertIn('2.0.9', read_text(CHANGELOG))
         self.assertIn('bootstrap/update.sh', read_text(README))
+        self.assertIn('面向 OpenClaw 的持久记忆层', read_text(README))
+        self.assertIn('一行代码无损更新', read_text(README))
+        self.assertIn('一行代码全新安装', read_text(README))
 
     def test_curator_fallback_matches_bootstrap_default(self) -> None:
         text = read_text(CURATOR)
@@ -62,6 +68,25 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('CURATION_TIMEOUT_SECONDS = int(os.getenv("CURATION_TIMEOUT_SECONDS", "1200"))', text)
         self.assertIn('CURATION_NUM_PREDICT = int(os.getenv("CURATION_NUM_PREDICT", "1200"))', text)
         self.assertIn('"format": "json"', text)
+
+    def test_codeshield_secret_handling_and_rebuild_workflow_are_documented(self) -> None:
+        readme = read_text(README)
+        changelog = read_text(CHANGELOG)
+        update = read_text(UPDATE)
+        template = read_text(TEMPLATE_ENV)
+
+        self.assertIn('/run/openclaw-memory/secrets.env', readme)
+        self.assertIn('CodeShield 托管的密钥不会写入 `.memory_env`', readme)
+        self.assertIn('重建 True Recall gems', readme)
+        self.assertIn('2.0.9', changelog)
+        self.assertIn('CodeShield-managed secrets stay outside .memory_env', update)
+        self.assertIn('QDRANT_API_KEY managed by CodeShield - sourced from restricted path', template)
+
+        rebuild = read_text(REBUILD)
+        self.assertIn('curate_memories.py', rebuild)
+        self.assertIn('cron_capture.py', rebuild)
+        self.assertIn('true_recall', rebuild)
+        self.assertIn('redis-cli', rebuild)
 
 
 if __name__ == '__main__':
