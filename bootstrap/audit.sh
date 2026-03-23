@@ -72,6 +72,7 @@ for path in \
   "${WORKSPACE_DIR}/skills/mem-redis/scripts/cron_capture.py" \
   "${WORKSPACE_DIR}/skills/mem-redis/scripts/cron_backup.py" \
   "${WORKSPACE_DIR}/skills/qdrant-memory/scripts/auto_store.py" \
+  "${WORKSPACE_DIR}/plugins/memory-qdrant/package.json" \
   "${PROJECT_DIR}/tr-process/curate_memories.py"; do
   if [[ -e "${path}" ]]; then
     echo "OK   ${path}"
@@ -110,6 +111,14 @@ echo
 
 echo "--- 8. Cron ---"
 crontab -l -u "${OPENCLAW_USER}" 2>/dev/null | grep -E 'cron_capture|cron_backup|sliding_backup|curate_memories' || true
+echo
+
+echo "--- 9. OpenClaw plugin ---"
+if command -v openclaw >/dev/null 2>&1; then
+  HOME="${OPENCLAW_HOME}" XDG_CONFIG_HOME="${OPENCLAW_HOME}/.config" openclaw plugins info memory-qdrant 2>/dev/null || echo "WARN memory-qdrant plugin not installed for ${OPENCLAW_USER}"
+else
+  echo "WARN openclaw binary not found for plugin audit"
+fi
 echo
 
 echo "=============================================="

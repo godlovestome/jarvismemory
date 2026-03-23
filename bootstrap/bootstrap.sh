@@ -30,12 +30,37 @@ CRON_CAPTURE_SCHEDULE="${CRON_CAPTURE_SCHEDULE:-*/5 * * * *}"
 TR_SCHEDULE="${TR_SCHEDULE:-30 10 * * *}"
 BACKUP_SCHEDULE="${BACKUP_SCHEDULE:-0 11 * * *}"
 SLIDING_SCHEDULE="${SLIDING_SCHEDULE:-30 11 * * *}"
+OPENCLAW_PLUGIN_SOURCE_REL="${OPENCLAW_PLUGIN_SOURCE_REL:-plugins/memory-qdrant}"
 
 log() { printf '[bootstrap] %s\n' "$*"; }
 die() { printf '[bootstrap] ERROR: %s\n' "$*" >&2; exit 1; }
 
 run_as_openclaw() {
   su - "${OPENCLAW_USER}" -c "$*"
+}
+
+resolve_openclaw_bin() {
+  if command -v openclaw >/dev/null 2>&1; then
+    command -v openclaw
+    return 0
+  fi
+  if [[ -x "${OPENCLAW_HOME}/.npm-global/bin/openclaw" ]]; then
+    printf '%s\n' "${OPENCLAW_HOME}/.npm-global/bin/openclaw"
+    return 0
+  fi
+  return 1
+}
+
+run_openclaw_cli_for_runtime() {
+  local runtime_user="$1"
+  local runtime_home="$2"
+  local runtime_workspace="$3"
+  local cli_args="$4"
+  local openclaw_bin
+
+  openclaw_bin="$(resolve_openclaw_bin)" || die "openclaw binary not found"
+  su -s /bin/bash "${runtime_user}" -c \
+    "env HOME='${runtime_home}' XDG_CONFIG_HOME='${runtime_home}/.config' OPENCLAW_WORKSPACE='${runtime_workspace}' '${openclaw_bin}' ${cli_args}"
 }
 
 has_service_runtime() {
@@ -118,14 +143,16 @@ sync_repo_workspace() {
   install -d -o "$owner" -g "$owner" "$target_workspace/config"
   install -d -o "$owner" -g "$owner" "$target_workspace/.projects"
   install -d -o "$owner" -g "$owner" "$target_workspace/memory"
+  install -d -o "$owner" -g "$owner" "$target_workspace/plugins"
 
   rsync -a "${REPO_ROOT}/workspace/skills/" "$target_workspace/skills/"
   rsync -a "${REPO_ROOT}/workspace/docs/" "$target_workspace/docs/"
   rsync -a "${REPO_ROOT}/workspace/config/" "$target_workspace/config/"
   rsync -a "${REPO_ROOT}/workspace/.projects/true-recall/" "$target_workspace/.projects/true-recall/"
+  rsync -a "${REPO_ROOT}/workspace/plugins/" "$target_workspace/plugins/"
   install -m 0644 "${REPO_ROOT}/workspace/HEARTBEAT.md" "$target_workspace/HEARTBEAT.md"
   chmod +x "$target_workspace/skills/qdrant-memory/scripts/sliding_backup.sh"
-  chown -R "$owner:$owner" "$target_workspace/skills" "$target_workspace/docs" "$target_workspace/config" "$target_workspace/.projects" "$target_workspace/HEARTBEAT.md"
+  chown -R "$owner:$owner" "$target_workspace/skills" "$target_workspace/docs" "$target_workspace/config" "$target_workspace/.projects" "$target_workspace/plugins" "$target_workspace/HEARTBEAT.md"
 }
 
 prompt_if_missing() {
@@ -271,6 +298,37 @@ openclaw_json_paths() {
   fi
 }
 
+install_openclaw_true_recall_plugin() {
+  local runtime_user="$1"
+  local runtime_home="$2"
+  local runtime_workspace="$3"
+  local plugin_source="${runtime_workspace}/${OPENCLAW_PLUGIN_SOURCE_REL}"
+  local output
+
+  [[ -d "${plugin_source}" ]] || die "Plugin source not found at ${plugin_source}"
+
+  if ! output="$(run_openclaw_cli_for_runtime "${runtime_user}" "${runtime_home}" "${runtime_workspace}" "plugins install '${plugin_source}'" 2>&1)"; then
+    case "${output}" in
+      *"already installed"*|*"is already installed"*)
+        log "OpenClaw plugin memory-qdrant already installed for ${runtime_user}"
+        ;;
+      *)
+        printf '%s\n' "${output}" >&2
+        die "Failed to install memory-qdrant plugin for ${runtime_user}"
+        ;;
+    esac
+  fi
+
+  run_openclaw_cli_for_runtime "${runtime_user}" "${runtime_home}" "${runtime_workspace}" "plugins enable memory-qdrant" >/dev/null 2>&1 || true
+}
+
+install_openclaw_true_recall_plugins() {
+  install_openclaw_true_recall_plugin "${OPENCLAW_USER}" "${OPENCLAW_HOME}" "${WORKSPACE_DIR}"
+  if has_service_runtime; then
+    install_openclaw_true_recall_plugin "${SERVICE_OPENCLAW_USER}" "${SERVICE_OPENCLAW_HOME}" "${SERVICE_WORKSPACE_DIR}"
+  fi
+}
+
 configure_openclaw_true_recall() {
   local json_file owner workspace_path
   while IFS= read -r json_file; do
@@ -315,6 +373,7 @@ plugin['config'] = {
     'collectionName': os.environ.get('TR_COLLECTION', 'true_recall'),
     'ollamaUrl': os.environ.get('OLLAMA_URL', 'http://127.0.0.1:11434'),
     'embeddingModel': os.environ.get('EMBEDDING_MODEL', 'mxbai-embed-large'),
+    'userId': os.environ.get('USER_ID', ''),
     'autoRecall': True,
     'autoCapture': False,
     'maxRecallResults': 3,
@@ -334,6 +393,7 @@ PY
 sync_workspace() {
   backup_if_exists "${WORKSPACE_DIR}/skills/mem-redis"
   backup_if_exists "${WORKSPACE_DIR}/skills/qdrant-memory"
+  backup_if_exists "${WORKSPACE_DIR}/plugins/memory-qdrant"
   backup_if_exists "${PROJECT_DIR}"
   backup_if_exists "${WORKSPACE_DIR}/HEARTBEAT.md"
   backup_if_exists "${WORKSPACE_DIR}/config/HEARTBEAT.md"
@@ -536,6 +596,9 @@ main() {
 
   log "Configuring OpenClaw memorySearch (local Ollama)"
   configure_openclaw_memorysearch
+
+  log "Installing OpenClaw True Recall plugin"
+  install_openclaw_true_recall_plugins
 
   log "Configuring OpenClaw True Recall auto-recall"
   configure_openclaw_true_recall

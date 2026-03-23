@@ -13,6 +13,10 @@ UPDATE = REPO_ROOT / "bootstrap" / "update.sh"
 TEMPLATE_ENV = REPO_ROOT / "templates" / ".memory_env.example"
 REBUILD = REPO_ROOT / "bootstrap" / "rebuild_true_recall.sh"
 CURATOR = REPO_ROOT / "workspace" / ".projects" / "true-recall" / "tr-process" / "curate_memories.py"
+PLUGIN_DIR = REPO_ROOT / "workspace" / "plugins" / "memory-qdrant"
+PLUGIN_PACKAGE = PLUGIN_DIR / "package.json"
+PLUGIN_MANIFEST = PLUGIN_DIR / "openclaw.plugin.json"
+PLUGIN_INDEX = PLUGIN_DIR / "index.ts"
 
 
 def read_text(path: Path) -> str:
@@ -56,8 +60,8 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
-        self.assertIn('Jarvis Memory v2.0.12', read_text(README))
-        self.assertIn('2.0.12', read_text(CHANGELOG))
+        self.assertIn('Jarvis Memory v2.0.13', read_text(README))
+        self.assertIn('2.0.13', read_text(CHANGELOG))
         self.assertIn('bootstrap/update.sh', read_text(README))
         self.assertIn('面向 OpenClaw 的持久记忆层', read_text(README))
         self.assertIn('一行代码无损更新', read_text(README))
@@ -79,14 +83,33 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('response.raise_for_status()', text)
         self.assertIn('response.status_code in (200, 202)', text)
 
-    def test_bootstrap_configures_true_recall_auto_recall_plugin(self) -> None:
+    def test_bootstrap_installs_and_configures_true_recall_plugin(self) -> None:
         text = read_text(BOOTSTRAP)
+        self.assertIn('install_openclaw_true_recall_plugin()', text)
         self.assertIn('configure_openclaw_true_recall()', text)
-        self.assertIn("'memory-qdrant'", text)
+        self.assertIn('plugins install', text)
+        self.assertIn('plugins enable memory-qdrant', text)
+        self.assertIn('plugins/memory-qdrant', text)
         self.assertIn("'collectionName': os.environ.get('TR_COLLECTION', 'true_recall')", text)
         self.assertIn("'embeddingModel': os.environ.get('EMBEDDING_MODEL', 'mxbai-embed-large')", text)
         self.assertIn("'autoRecall': True", text)
         self.assertIn("plugins = cfg.setdefault('plugins', {})", text)
+
+    def test_plugin_package_exists_with_manifest_and_entrypoint(self) -> None:
+        self.assertTrue(PLUGIN_PACKAGE.exists(), PLUGIN_PACKAGE)
+        self.assertTrue(PLUGIN_MANIFEST.exists(), PLUGIN_MANIFEST)
+        self.assertTrue(PLUGIN_INDEX.exists(), PLUGIN_INDEX)
+        package = read_text(PLUGIN_PACKAGE)
+        manifest = read_text(PLUGIN_MANIFEST)
+        index = read_text(PLUGIN_INDEX)
+
+        self.assertIn('"name": "@godlovestome/memory-qdrant"', package)
+        self.assertIn('"./index.ts"', package)
+        self.assertIn('"id": "memory-qdrant"', manifest)
+        self.assertIn('"kind": "memory"', manifest)
+        self.assertIn('before_agent_start', index)
+        self.assertIn('true_recall', index)
+        self.assertIn('127.0.0.1:6333', index)
 
     def test_codeshield_secret_handling_and_rebuild_workflow_are_documented(self) -> None:
         readme = read_text(README)
@@ -95,9 +118,9 @@ class RuntimePathTests(unittest.TestCase):
         template = read_text(TEMPLATE_ENV)
 
         self.assertIn('/run/openclaw-memory/secrets.env', readme)
-        self.assertIn('CodeShield 托管的密钥不会写入 `.memory_env`', readme)
+        self.assertIn('不会写入 `.memory_env`', readme)
         self.assertIn('重建 True Recall gems', readme)
-        self.assertIn('2.0.12', changelog)
+        self.assertIn('2.0.13', changelog)
         self.assertIn('CodeShield-managed secrets stay outside .memory_env', update)
         self.assertIn('QDRANT_API_KEY managed by CodeShield - sourced from restricted path', template)
 

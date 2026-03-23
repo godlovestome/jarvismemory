@@ -1,49 +1,49 @@
-# Jarvis Memory v2.0.12
+# Jarvis Memory v2.0.13
 
 **Persistent Memory for OpenClaw**  
 **面向 OpenClaw 的持久记忆层**
 
 ## Purpose / 目标
 
-Jarvis Memory + True Recall is a persistent cross-session memory stack for OpenClaw. It uses Redis for short-term staging, Qdrant for long-term vector storage, and Ollama for local embedding plus gem curation.
+Jarvis Memory + True Recall gives OpenClaw a persistent, cross-session memory stack. Redis stages fresh turns, Qdrant stores long-term vectors, Ollama handles local embeddings and curation, and a real OpenClaw `memory-qdrant` plugin injects relevant True Recall gems before replies.
 
-Jarvis Memory + True Recall 是一套面向 OpenClaw 的跨会话持久记忆栈。它使用 Redis 做短期暂存，使用 Qdrant 做长期向量存储，并使用 Ollama 负责本地 embedding 与 gems 提炼。
+Jarvis Memory + True Recall 为 OpenClaw 提供跨会话持久记忆能力。Redis 暂存新对话，Qdrant 保存长期向量，Ollama 负责本地 embedding 与 gems 提炼，真正安装到 OpenClaw 里的 `memory-qdrant` 插件会在回复前注入相关的 True Recall gems。
 
 ## Version Focus / 版本重点
 
-`v2.0.12` focuses on reliable True Recall storage and retrieval under CodeShield:
+`v2.0.13` fixes the missing True Recall recall path under CodeShield:
 
-- `curate_memories.py` now treats Qdrant `202 Accepted` as a successful write, so gems acknowledged asynchronously are no longer reported as failed.
-- True Recall gem storage sends the CodeShield-managed `QDRANT_API_KEY` and waits for Qdrant acknowledgement.
-- `bootstrap.sh` and `bootstrap/update.sh` write the `memory-qdrant` auto-recall plugin config into both OpenClaw runtimes, pointing recall at `true_recall` with `mxbai-embed-large`.
-- The default curator model remains `qwen3.5:35b-a3b`, and legacy temporary fallback `qwen3:14b` is normalized back during bootstrap or update.
-- CodeShield-managed secrets stay outside `.memory_env` and continue to load only from `/run/openclaw-memory/secrets.env`.
+- `memory-qdrant` is now a real installable OpenClaw plugin, not just a stale config entry.
+- `bootstrap.sh` and `bootstrap/update.sh` install and enable the plugin for both `openclaw` and `openclaw-svc` runtimes.
+- Plugin recall is limited to local `127.0.0.1` Qdrant and Ollama endpoints, keeping retrieval inside the CodeShield boundary.
+- Plugin config carries only non-secret runtime values; Qdrant credentials still come only from `/run/openclaw-memory/secrets.env`.
+- The default curator model remains `qwen3.5:35b-a3b`, and legacy fallback `qwen3:14b` is still normalized back automatically.
 
-`v2.0.12` 重点修复 CodeShield 框架下 True Recall 的存储与检索链路：
+`v2.0.13` 重点修复 CodeShield 框架下 True Recall 召回链路缺失的问题：
 
-- `curate_memories.py` 现在会把 Qdrant 返回的 `202 Accepted` 视为成功写入，避免 gems 已被异步确认却仍显示 `Stored 0/x`。
-- True Recall 的 gems 写入会携带 CodeShield 托管的 `QDRANT_API_KEY`，并等待 Qdrant 明确确认。
-- `bootstrap.sh` 与 `bootstrap/update.sh` 会把 `memory-qdrant` auto-recall 插件配置写入两份 OpenClaw 运行时配置，使检索直接指向 `true_recall`，并使用 `mxbai-embed-large` 做查询 embedding。
-- 默认 curator 模型继续保持为 `qwen3.5:35b-a3b`，旧的临时回退模型 `qwen3:14b` 会在安装或更新时自动纠正回来。
-- CodeShield 托管的密钥不会写入 `.memory_env`，运行时仍只从 `/run/openclaw-memory/secrets.env` 加载。
+- `memory-qdrant` 现在是真正可安装的 OpenClaw 插件，不再只是一个会被忽略的配置项。
+- `bootstrap.sh` 与 `bootstrap/update.sh` 会为 `openclaw` 和 `openclaw-svc` 两套运行时安装并启用该插件。
+- 插件召回只允许访问本机 `127.0.0.1` 的 Qdrant 与 Ollama，保证检索始终留在 CodeShield 边界内。
+- 插件配置只写入非敏感运行参数；Qdrant 密钥仍然只从 `/run/openclaw-memory/secrets.env` 加载。
+- 默认 curator 模型保持为 `qwen3.5:35b-a3b`，旧的临时回退模型 `qwen3:14b` 仍会自动纠正回来。
 
 ## CodeShield Compatibility / CodeShield 兼容性
 
-This repository is designed to run inside the CodeShield security model, not around it.
+This repository is designed to run inside the CodeShield security framework, not around it.
 
 - Secrets remain managed by CodeShield.
 - Runtime secrets are sourced only from `/run/openclaw-memory/secrets.env`.
 - OpenClaw can continue running as `openclaw-svc`.
-- Jarvis Memory cron jobs only read active session transcripts.
-- No Telegram token, Qdrant API key, or other protected secret needs to be copied into OpenClaw onboarding or plaintext repo config.
+- The recall plugin only talks to local Qdrant and Ollama addresses.
+- No Telegram token, Qdrant API key, or other protected secret is copied into `.memory_env`, README examples, or OpenClaw onboarding.
 
 本仓库的设计目标是在 CodeShield 安全框架之内运行，而不是绕过它。
 
 - 密钥继续由 CodeShield 接管。
 - 运行时密钥只从 `/run/openclaw-memory/secrets.env` 加载。
 - OpenClaw 可以继续以 `openclaw-svc` 身份运行。
-- Jarvis Memory 的 cron 只读取当前活跃的 session transcript。
-- Telegram token、Qdrant API key 等受保护密钥都不需要回填到 OpenClaw onboarding 或仓库明文配置里。
+- 召回插件只访问本机的 Qdrant 和 Ollama 地址。
+- Telegram token、Qdrant API key 等受保护密钥都不会写入 `.memory_env`、README 示例或 OpenClaw onboarding。
 
 ## Quick Start / 快速开始
 
@@ -75,16 +75,16 @@ The lossless update path keeps:
 
 ## Runtime Behavior / 运行时行为
 
-1. `cron_capture.py` captures recent OpenClaw turns from the active runtime session directory.
-2. The Redis buffer stores staged turns under `mem:<user_id>`.
+1. `cron_capture.py` collects recent OpenClaw turns from the active runtime session directory.
+2. Redis stages those turns under `mem:<user_id>`.
 3. `curate_memories.py` extracts high-signal gems and stores them into `true_recall`.
-4. `memory-qdrant` auto-recall injects relevant gems from `true_recall` before replies.
+4. The installed `memory-qdrant` plugin queries local Qdrant with local Ollama embeddings and prepends relevant gems before replies.
 5. Jarvis Memory backup jobs can still flush the same Redis source turns into the long-term memory pipeline.
 
 1. `cron_capture.py` 会从当前活跃运行时的 session 目录抓取最近对话。
 2. Redis 会把这些 turn 暂存到 `mem:<user_id>`。
 3. `curate_memories.py` 会提炼高价值 gems 并写入 `true_recall`。
-4. `memory-qdrant` auto-recall 会在回复前从 `true_recall` 注入相关 gems。
+4. 已安装的 `memory-qdrant` 插件会使用本地 Ollama embedding 查询本地 Qdrant，并在回复前注入相关 gems。
 5. Jarvis Memory 备份任务仍可继续把同一份 Redis 源 turn 刷入长期记忆流水线。
 
 ## Operations / 运维命令

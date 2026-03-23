@@ -1,0 +1,67 @@
+{
+  "id": "memory-qdrant",
+  "kind": "memory",
+  "uiHints": {
+    "qdrantUrl": {
+      "label": "Qdrant URL",
+      "placeholder": "http://127.0.0.1:6333",
+      "help": "Keep this on the local host when running under CodeShield."
+    },
+    "collectionName": {
+      "label": "Collection",
+      "placeholder": "true_recall",
+      "help": "True Recall collection used for auto-recall."
+    },
+    "ollamaUrl": {
+      "label": "Ollama URL",
+      "placeholder": "http://127.0.0.1:11434",
+      "help": "Local Ollama endpoint used for query embeddings."
+    },
+    "embeddingModel": {
+      "label": "Embedding Model",
+      "placeholder": "mxbai-embed-large",
+      "help": "Local Ollama embedding model for recall queries."
+    },
+    "userId": {
+      "label": "User ID",
+      "placeholder": "tars",
+      "help": "Restricts recall to a single trusted operator memory stream."
+    },
+    "autoRecall": {
+      "label": "Auto Recall",
+      "help": "Inject relevant True Recall gems before the model answers."
+    },
+    "maxRecallResults": {
+      "label": "Max Recall Results",
+      "placeholder": "3",
+      "help": "Number of memories to inject into the prompt."
+    },
+    "minRecallScore": {
+      "label": "Min Recall Score",
+      "placeholder": "0.5",
+      "help": "Ignore weak matches below this score."
+    },
+    "apiKeyEnvVar": {
+      "label": "Qdrant API Key Env Var",
+      "placeholder": "QDRANT_API_KEY",
+      "help": "Environment variable loaded by CodeShield; never stored in plugin config.",
+      "advanced": true
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "qdrantUrl": { "type": "string" },
+      "collectionName": { "type": "string" },
+      "ollamaUrl": { "type": "string" },
+      "embeddingModel": { "type": "string" },
+      "userId": { "type": "string" },
+      "autoRecall": { "type": "boolean" },
+      "autoCapture": { "type": "boolean" },
+      "maxRecallResults": { "type": "number", "minimum": 1, "maximum": 10 },
+      "minRecallScore": { "type": "number", "minimum": 0, "maximum": 1 },
+      "apiKeyEnvVar": { "type": "string" }
+    }
+  }
+}
