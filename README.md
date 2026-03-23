@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.15
+# Jarvis Memory v2.0.16
 
 **Persistent Memory for OpenClaw**  
 **面向 OpenClaw 的持久记忆层**
@@ -11,7 +11,7 @@ Jarvis Memory + True Recall 为 OpenClaw 提供跨会话持久记忆能力。Red
 
 ## Version Focus / 版本重点
 
-`v2.0.15` hardens the True Recall recall path under CodeShield:
+`v2.0.16` hardens the True Recall recall path under CodeShield:
 
 - `memory-qdrant` is now a real installable OpenClaw plugin, not just a stale config entry.
 - `bootstrap.sh` and `bootstrap/update.sh` install and enable the plugin for both `openclaw` and `openclaw-svc` runtimes.
@@ -19,9 +19,10 @@ Jarvis Memory + True Recall 为 OpenClaw 提供跨会话持久记忆能力。Red
 - Plugin config carries only non-secret runtime values; Qdrant credentials still come only from `/run/openclaw-memory/secrets.env`.
 - OpenClaw runtime now pins `memory-qdrant` in `plugins.allow`, so the plugin is treated as an explicitly trusted CodeShield-managed component.
 - Lossless updates now refresh the already-installed plugin code inside OpenClaw's managed extensions directory instead of failing on `plugin already exists`.
+- Lossless updates now also refresh `plugins.installs.memory-qdrant` per runtime, so `openclaw-svc` no longer keeps stale home-path provenance metadata.
 - The default curator model remains `qwen3.5:35b-a3b`, and legacy fallback `qwen3:14b` is still normalized back automatically.
 
-`v2.0.15` 重点加固 CodeShield 框架下的 True Recall 召回链路：
+`v2.0.16` 重点加固 CodeShield 框架下的 True Recall 召回链路：
 
 - `memory-qdrant` 现在是真正可安装的 OpenClaw 插件，不再只是一个会被忽略的配置项。
 - `bootstrap.sh` 与 `bootstrap/update.sh` 会为 `openclaw` 和 `openclaw-svc` 两套运行时安装并启用该插件。
@@ -29,6 +30,7 @@ Jarvis Memory + True Recall 为 OpenClaw 提供跨会话持久记忆能力。Red
 - 插件配置只写入非敏感运行参数；Qdrant 密钥仍然只从 `/run/openclaw-memory/secrets.env` 加载。
 - OpenClaw 运行时现在会把 `memory-qdrant` 固定写入 `plugins.allow`，把它明确标记为受信任的 CodeShield 托管插件。
 - 无损更新现在会刷新 OpenClaw 已安装扩展目录中的插件代码，不再因为 `plugin already exists` 而中断。
+- 无损更新现在也会按运行时刷新 `plugins.installs.memory-qdrant`，避免 `openclaw-svc` 继续保留指向 home-runtime 的旧 provenance 元数据。
 - 默认 curator 模型保持为 `qwen3.5:35b-a3b`，旧的临时回退模型 `qwen3:14b` 仍会自动纠正回来。
 
 ## CodeShield Compatibility / CodeShield 兼容性

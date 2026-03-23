@@ -338,14 +338,17 @@ install_openclaw_true_recall_plugins() {
 }
 
 configure_openclaw_true_recall() {
-  local json_file owner workspace_path
+  local json_file owner workspace_path runtime_home plugin_version
+  plugin_version="$(python3 -c "import json; from pathlib import Path; print(json.loads(Path(r'${REPO_ROOT}/workspace/plugins/memory-qdrant/package.json').read_text(encoding='utf-8'))['version'])")"
   while IFS= read -r json_file; do
     [ -n "${json_file}" ] || continue
     owner="${OPENCLAW_USER}"
     workspace_path="${WORKSPACE_DIR}"
+    runtime_home="${OPENCLAW_HOME}"
     if [[ "${json_file}" == "${SERVICE_OPENCLAW_HOME}/.openclaw/openclaw.json" ]]; then
       owner="${SERVICE_OPENCLAW_USER}"
       workspace_path="${SERVICE_WORKSPACE_DIR}"
+      runtime_home="${SERVICE_OPENCLAW_HOME}"
     fi
 
     install -d -o "${owner}" -g "${owner}" "$(dirname "${json_file}")"
@@ -354,7 +357,8 @@ configure_openclaw_true_recall() {
     OLLAMA_URL="${OLLAMA_URL:-http://127.0.0.1:11434}" \
     QDRANT_URL="${QDRANT_URL:-http://127.0.0.1:6333}" \
     TR_COLLECTION="${TR_COLLECTION:-true_recall}" \
-    python3 - "${json_file}" "${workspace_path}" <<'PY'
+    OPENCLAW_PLUGIN_VERSION="${plugin_version}" \
+    python3 - "${json_file}" "${workspace_path}" "${runtime_home}" <<'PY'
 import json
 import os
 import sys
@@ -362,6 +366,7 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 workspace_path = sys.argv[2]
+runtime_home = sys.argv[3]
 cfg = {}
 if path.exists():
     try:
@@ -390,6 +395,13 @@ plugin['config'] = {
     'maxRecallResults': 3,
     'minRecallScore': 0.5,
     'apiKeyEnvVar': 'QDRANT_API_KEY',
+}
+installs = plugins.setdefault('installs', {})
+installs['memory-qdrant'] = {
+    'source': 'path',
+    'sourcePath': f'{workspace_path}/plugins/memory-qdrant',
+    'installPath': f'{runtime_home}/.openclaw/extensions/memory-qdrant',
+    'version': os.environ.get('OPENCLAW_PLUGIN_VERSION', ''),
 }
 
 path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

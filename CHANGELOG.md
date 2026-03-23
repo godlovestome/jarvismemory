@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.16] - 2026-03-23
+
+### Added / Changed
+
+- Lossless update now rewrites `plugins.installs.memory-qdrant` with the correct runtime-specific `sourcePath`, `installPath`, and plugin version for both `openclaw` and `openclaw-svc`.
+- This removes stale home-runtime provenance from the service runtime and lets OpenClaw treat the plugin as a properly tracked installed extension.
+
+### 新增 / 调整
+
+- 无损更新现在会为 `openclaw` 与 `openclaw-svc` 两套运行时重写 `plugins.installs.memory-qdrant`，同步正确的 `sourcePath`、`installPath` 与插件版本号。
+- 这样可以移除 service runtime 里遗留的 home-runtime provenance，并让 OpenClaw 把该插件视为被正确追踪的已安装扩展。
+
 ## [2.0.15] - 2026-03-23
 
 ### Added / Changed
