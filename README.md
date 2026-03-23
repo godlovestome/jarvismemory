@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.18
+# Jarvis Memory v2.0.19
 
 Persistent memory for OpenClaw.
 面向 OpenClaw 的持久记忆层。
@@ -21,23 +21,25 @@ Jarvis Memory + True Recall 为 OpenClaw 提供在 CodeShield 框架内运行的
 
 ## Version Focus / 本版重点
 
-`v2.0.18` fixes both the gem rebuild path and the one-line lossless update path:
+`v2.0.19` fixes the remaining service-runtime rebuild gaps:
 
 - Redis message items are now normalized into real conversation turns before curation.
 - The curator prompt now matches the current True Recall turn schema.
 - Gems are validated and normalized before Qdrant writes.
 - Qdrant write failures now print the response body instead of failing as a black-box `400`.
 - Invalid gems are skipped safely instead of crashing the whole run.
-- `bootstrap/update.sh` now supports `curl ... | sudo bash` and will clone the repo to a temporary directory when no local repo context is present.
+- Transcript capture now prefers the CodeShield service runtime session directory when it is readable, even if older home-runtime files have newer mtimes.
+- `bootstrap/rebuild_true_recall.sh` now forces curator execution with `--hours 0`, so rebuild mode no longer drops staged turns because of the default 24-hour filter.
 
-`v2.0.18` 同时修复了 gems 重建链路和一行无损更新链路：
+`v2.0.19` 修复了最后两处 service-runtime 重建缺口：
 
 - Redis 原始消息会先标准化成真正的 turn，再交给 curator。
 - curator 提示词已对齐当前 True Recall 的 turn 结构。
 - gem 在写入 Qdrant 前会先做校验与规范化。
 - Qdrant 写入失败时会打印响应体，不再只是黑盒 `400`。
 - 非法 gem 会被安全跳过，不会让整次任务崩掉。
-- `bootstrap/update.sh` 现在支持 `curl ... | sudo bash`，在没有本地 repo 上下文时会先临时 clone 正确仓库再更新。
+- transcript 抓取现在会优先选择可读的 CodeShield service runtime session 目录，即使 home-runtime 的旧文件 mtime 更大也不会再抢走。
+- `bootstrap/rebuild_true_recall.sh` 现在会强制用 `--hours 0` 运行 curator，重建模式不再被默认 24 小时过滤误伤。
 
 ## CodeShield Safety / CodeShield 安全边界
 

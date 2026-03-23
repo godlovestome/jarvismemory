@@ -55,17 +55,14 @@ def discover_session_dirs(explicit_dir: Optional[str] = None) -> List[Path]:
 
 
 def find_latest_transcript(session_dirs: Sequence[Path]) -> Optional[Path]:
-    transcripts: List[Path] = []
     for session_dir in session_dirs:
+        transcripts: List[Path] = []
         try:
             transcripts.extend(path for path in session_dir.glob("*.jsonl") if path.is_file())
         except OSError:
             continue
-    if not transcripts:
-        return None
-    try:
-        return max(transcripts, key=lambda path: path.stat().st_mtime)
-    except OSError:
+        if not transcripts:
+            continue
         readable = []
         for transcript in transcripts:
             try:
@@ -73,4 +70,6 @@ def find_latest_transcript(session_dirs: Sequence[Path]) -> Optional[Path]:
             except OSError:
                 continue
             readable.append(transcript)
-        return max(readable, key=lambda path: path.stat().st_mtime) if readable else None
+        if readable:
+            return max(readable, key=lambda path: path.stat().st_mtime)
+    return None

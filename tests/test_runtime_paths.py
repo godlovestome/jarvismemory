@@ -63,8 +63,8 @@ class RuntimePathTests(unittest.TestCase):
     def test_docs_track_version_and_lossless_update(self) -> None:
         readme = read_text(README)
         changelog = read_text(CHANGELOG)
-        self.assertIn('Jarvis Memory v2.0.18', readme)
-        self.assertIn('2.0.18', changelog)
+        self.assertIn('Jarvis Memory v2.0.19', readme)
+        self.assertIn('2.0.19', changelog)
         self.assertIn('bootstrap/update.sh', readme)
         self.assertIn('面向 OpenClaw 的持久记忆层', readme)
         self.assertIn('一行代码无损更新', readme)
@@ -119,7 +119,7 @@ class RuntimePathTests(unittest.TestCase):
         index = read_text(PLUGIN_INDEX)
 
         self.assertIn('"name": "@godlovestome/memory-qdrant"', package)
-        self.assertIn('"version": "2.0.18"', package)
+        self.assertIn('"version": "2.0.19"', package)
         self.assertIn('"./index.ts"', package)
         self.assertIn('"id": "memory-qdrant"', manifest)
         self.assertIn('"kind": "memory"', manifest)
@@ -138,7 +138,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('/run/openclaw-memory/secrets.env', readme)
         self.assertIn('不会把 Qdrant API key 等受保护密钥写入 `.memory_env`', readme)
         self.assertIn('重建 True Recall gems', readme)
-        self.assertIn('2.0.18', changelog)
+        self.assertIn('2.0.19', changelog)
         self.assertIn('CodeShield-managed secrets stay outside .memory_env', update)
         self.assertIn('SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"', update)
         self.assertIn('resolve_script_context()', update)
@@ -150,6 +150,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('cron_capture.py', rebuild)
         self.assertIn('true_recall', rebuild)
         self.assertIn('redis-cli', rebuild)
+        self.assertIn("--hours 0", rebuild)
 
 
 if __name__ == '__main__':

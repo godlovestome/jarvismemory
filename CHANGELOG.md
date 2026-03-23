@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.19] - 2026-03-23
+
+### Added / Changed
+
+- Session discovery now prefers the readable CodeShield service runtime transcript directory before falling back to the interactive home runtime.
+- This prevents old home-session files from outranking the live `openclaw-svc` transcript stream during capture.
+- `bootstrap/rebuild_true_recall.sh` now runs curator with `--hours 0`, so rebuild mode processes the staged backlog instead of reapplying the default 24-hour filter.
+
+### 新增 / 调整
+
+- session 发现逻辑现在会优先使用可读的 CodeShield service runtime transcript 目录，再回退到交互式 home runtime。
+- 这样可以避免旧的 home-session 文件继续压过 live 的 `openclaw-svc` transcript 流。
+- `bootstrap/rebuild_true_recall.sh` 现在会用 `--hours 0` 运行 curator，重建模式会处理当前暂存 backlog，而不会再次套用默认 24 小时过滤。
+
 ## [2.0.18] - 2026-03-23
 
 ### Added / Changed

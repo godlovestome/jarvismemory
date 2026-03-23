@@ -96,7 +96,7 @@ log "Re-running transcript capture"
 run_as_openclaw "'${PYTHON_BIN}' '${CAPTURE_SCRIPT}' --user-id '${USER_ID}'"
 
 log "Re-running gem curation"
-run_as_openclaw "'${PYTHON_BIN}' '${CURATOR_SCRIPT}' --user-id '${USER_ID}'"
+run_as_openclaw "'${PYTHON_BIN}' '${CURATOR_SCRIPT}' --user-id '${USER_ID}' --hours 0"
 
 log "Final point count"
 "${PYTHON_BIN}" - <<'PY'

@@ -69,6 +69,31 @@ class SessionRuntimeTests(unittest.TestCase):
 
         self.assertEqual(selected, newer_file)
 
+    def test_prefers_service_runtime_even_when_home_transcript_is_newer(self) -> None:
+        module = load_module()
+
+        root = self.make_sandbox()
+        home_dir = root / "home-sessions"
+        service_dir = root / "service-sessions"
+        home_dir.mkdir()
+        service_dir.mkdir()
+
+        home_file = home_dir / "newer-home.jsonl"
+        home_file.write_text('{"type":"message"}\n', encoding="utf-8")
+        service_file = service_dir / "older-service.jsonl"
+        service_file.write_text('{"type":"message"}\n', encoding="utf-8")
+
+        os.utime(home_file, (3000, 3000))
+        os.utime(service_file, (2000, 2000))
+
+        os.environ["OPENCLAW_HOME_SESSIONS_DIR"] = str(home_dir)
+        os.environ["OPENCLAW_SERVICE_SESSIONS_DIR"] = str(service_dir)
+        os.environ["OPENCLAW_SESSIONS_DIR"] = str(home_dir)
+
+        selected = module.find_latest_transcript(module.discover_session_dirs())
+
+        self.assertEqual(selected, service_file)
+
     def test_falls_back_to_home_runtime_when_service_runtime_is_missing(self) -> None:
         module = load_module()
 
