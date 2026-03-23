@@ -26,6 +26,7 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB = 0
 QDRANT_URL = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
 QDRANT_COLLECTION = os.getenv("TR_COLLECTION", "true_recall")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "mxbai-embed-large")
 CURATION_MODEL = os.getenv("CURATION_MODEL", "qwen3.5:35b-a3b")
@@ -39,6 +40,13 @@ CURATOR_PROMPT_PATH = PROJECT_DIR / "curator_prompt.md"
 
 def load_curator_prompt() -> str:
     return CURATOR_PROMPT_PATH.read_text(encoding="utf-8")
+
+
+def _qdrant_headers() -> Dict[str, str]:
+    headers: Dict[str, str] = {}
+    if QDRANT_API_KEY:
+        headers["api-key"] = QDRANT_API_KEY
+    return headers
 
 
 def get_redis_client() -> redis.Redis:
@@ -153,7 +161,7 @@ def store_gem_to_qdrant(gem: Dict[str, Any], user_id: str) -> bool:
     gem_id = int.from_bytes(hash_bytes, byteorder="big") % (2**63)
 
     response = requests.put(
-        f"{QDRANT_URL.rstrip('/')}/collections/{QDRANT_COLLECTION}/points",
+        f"{QDRANT_URL.rstrip('/')}/collections/{QDRANT_COLLECTION}/points?wait=true",
         json={
             "points": [
                 {
@@ -163,8 +171,10 @@ def store_gem_to_qdrant(gem: Dict[str, Any], user_id: str) -> bool:
                 }
             ]
         },
+        headers=_qdrant_headers(),
         timeout=120,
     )
+    response.raise_for_status()
     return response.status_code == 200
 
 

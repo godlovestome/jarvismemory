@@ -73,6 +73,9 @@ configure_service_session_access
 log "Regenerating cron block"
 configure_cron
 
+log "Refreshing OpenClaw True Recall auto-recall config"
+configure_openclaw_true_recall
+
 log "Running audit"
 OPENCLAW_USER="${OPENCLAW_USER}" \
 OPENCLAW_HOME="${OPENCLAW_HOME}" \

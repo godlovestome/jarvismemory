@@ -264,6 +264,73 @@ configure_openclaw_memorysearch() {
   log "OpenClaw memorySearch configured: provider=ollama model=${OPENCLAW_MEMORYSEARCH_MODEL}"
 }
 
+openclaw_json_paths() {
+  printf '%s\n' "${OPENCLAW_HOME}/.openclaw/openclaw.json"
+  if has_service_runtime; then
+    printf '%s\n' "${SERVICE_OPENCLAW_HOME}/.openclaw/openclaw.json"
+  fi
+}
+
+configure_openclaw_true_recall() {
+  local json_file owner workspace_path
+  while IFS= read -r json_file; do
+    [ -n "${json_file}" ] || continue
+    owner="${OPENCLAW_USER}"
+    workspace_path="${WORKSPACE_DIR}"
+    if [[ "${json_file}" == "${SERVICE_OPENCLAW_HOME}/.openclaw/openclaw.json" ]]; then
+      owner="${SERVICE_OPENCLAW_USER}"
+      workspace_path="${SERVICE_WORKSPACE_DIR}"
+    fi
+
+    install -d -o "${owner}" -g "${owner}" "$(dirname "${json_file}")"
+
+    EMBEDDING_MODEL="${EMBEDDING_MODEL}" \
+    OLLAMA_URL="${OLLAMA_URL:-http://127.0.0.1:11434}" \
+    QDRANT_URL="${QDRANT_URL:-http://127.0.0.1:6333}" \
+    TR_COLLECTION="${TR_COLLECTION:-true_recall}" \
+    python3 - "${json_file}" "${workspace_path}" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+workspace_path = sys.argv[2]
+cfg = {}
+if path.exists():
+    try:
+        cfg = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        cfg = {}
+
+agents = cfg.setdefault("agents", {}).setdefault("defaults", {})
+agents["workspace"] = workspace_path
+
+plugins = cfg.setdefault('plugins', {})
+entries = plugins.setdefault('entries', {})
+plugin = entries.setdefault('memory-qdrant', {})
+plugin['enabled'] = True
+plugin['config'] = {
+    'qdrantUrl': os.environ.get('QDRANT_URL', 'http://127.0.0.1:6333'),
+    'collectionName': os.environ.get('TR_COLLECTION', 'true_recall'),
+    'ollamaUrl': os.environ.get('OLLAMA_URL', 'http://127.0.0.1:11434'),
+    'embeddingModel': os.environ.get('EMBEDDING_MODEL', 'mxbai-embed-large'),
+    'autoRecall': True,
+    'autoCapture': False,
+    'maxRecallResults': 3,
+    'minRecallScore': 0.5,
+}
+
+path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
+    chown "${owner}:${owner}" "${json_file}"
+    chmod 0600 "${json_file}"
+  done < <(openclaw_json_paths)
+
+  log "OpenClaw True Recall auto-recall configured: collection=${TR_COLLECTION:-true_recall} model=${EMBEDDING_MODEL}"
+}
+
 sync_workspace() {
   backup_if_exists "${WORKSPACE_DIR}/skills/mem-redis"
   backup_if_exists "${WORKSPACE_DIR}/skills/qdrant-memory"
@@ -469,6 +536,9 @@ main() {
 
   log "Configuring OpenClaw memorySearch (local Ollama)"
   configure_openclaw_memorysearch
+
+  log "Configuring OpenClaw True Recall auto-recall"
+  configure_openclaw_true_recall
 
   log "Running final audit"
   OPENCLAW_USER="${OPENCLAW_USER}" OPENCLAW_HOME="${OPENCLAW_HOME}" WORKSPACE_DIR="${WORKSPACE_DIR}" "${SCRIPT_DIR}/audit.sh"
