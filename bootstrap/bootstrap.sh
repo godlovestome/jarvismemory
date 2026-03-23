@@ -8,7 +8,7 @@ OPENCLAW_USER="${OPENCLAW_USER:-openclaw}"
 TIMEZONE="${TIMEZONE:-America/Los_Angeles}"
 USER_ID="${USER_ID:-}"
 EMBEDDING_MODEL="${EMBEDDING_MODEL:-mxbai-embed-large}"
-DEFAULT_CURATION_MODEL="${DEFAULT_CURATION_MODEL:-qwen3:14b}"
+DEFAULT_CURATION_MODEL="${DEFAULT_CURATION_MODEL:-qwen3.5:35b-a3b}"
 CURATION_MODEL="${CURATION_MODEL:-${DEFAULT_CURATION_MODEL}}"
 CURATION_TIMEOUT_SECONDS="${CURATION_TIMEOUT_SECONDS:-1200}"
 CURATION_NUM_PREDICT="${CURATION_NUM_PREDICT:-1200}"
@@ -44,7 +44,7 @@ has_service_runtime() {
 
 is_legacy_default_curation_model() {
   case "${1:-}" in
-    qwen3.5:35b-a3b|qwen3.5:35b-a3b-nothink)
+    qwen3:14b)
       return 0
       ;;
     *)
@@ -60,7 +60,7 @@ normalize_curation_model() {
   fi
 
   if is_legacy_default_curation_model "${CURATION_MODEL}"; then
-    log "Replacing legacy curator default ${CURATION_MODEL} with ${DEFAULT_CURATION_MODEL}"
+    log "Replacing temporary curator fallback ${CURATION_MODEL} with ${DEFAULT_CURATION_MODEL}"
     CURATION_MODEL="${DEFAULT_CURATION_MODEL}"
   fi
 }
