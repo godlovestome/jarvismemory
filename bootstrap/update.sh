@@ -15,7 +15,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR=""
+REPO_ROOT=""
+REMOTE_REPO_DIR=""
+JARVISMEMORY_REPO_URL="${JARVISMEMORY_REPO_URL:-https://github.com/godlovestome/jarvismemory.git}"
 
 OPENCLAW_USER="${OPENCLAW_USER:-openclaw}"
 OPENCLAW_HOME="${OPENCLAW_HOME:-/home/${OPENCLAW_USER}}"
@@ -23,6 +27,40 @@ ENV_FILE="${OPENCLAW_HOME}/.memory_env"
 
 log()  { printf '[update] %s\n' "$*"; }
 die()  { printf '[update] ERROR: %s\n' "$*" >&2; exit 1; }
+
+cleanup() {
+  if [[ -n "${REMOTE_REPO_DIR}" && -d "${REMOTE_REPO_DIR}" ]]; then
+    rm -rf "${REMOTE_REPO_DIR}"
+  fi
+}
+
+resolve_script_context() {
+  local candidate_dir=""
+
+  if [[ -n "${SCRIPT_SOURCE}" ]]; then
+    candidate_dir="$(cd "$(dirname "${SCRIPT_SOURCE}")" 2>/dev/null && pwd || true)"
+    if [[ -n "${candidate_dir}" && -f "${candidate_dir}/bootstrap.sh" && -f "${candidate_dir}/audit.sh" ]]; then
+      SCRIPT_DIR="${candidate_dir}"
+      REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+      return 0
+    fi
+  fi
+
+  if [[ -f "${PWD}/bootstrap/bootstrap.sh" && -f "${PWD}/bootstrap/audit.sh" ]]; then
+    SCRIPT_DIR="${PWD}/bootstrap"
+    REPO_ROOT="${PWD}"
+    return 0
+  fi
+
+  log "No local repo context detected; cloning ${JARVISMEMORY_REPO_URL} to a temporary directory"
+  REMOTE_REPO_DIR="$(mktemp -d)"
+  git clone --depth 1 "${JARVISMEMORY_REPO_URL}" "${REMOTE_REPO_DIR}" >/dev/null 2>&1 || die "Failed to clone ${JARVISMEMORY_REPO_URL}"
+  SCRIPT_DIR="${REMOTE_REPO_DIR}/bootstrap"
+  REPO_ROOT="${REMOTE_REPO_DIR}"
+}
+
+trap cleanup EXIT
+resolve_script_context
 
 if [[ ! -f "${ENV_FILE}" ]]; then
   die "No existing deployment found at ${ENV_FILE}.
@@ -88,5 +126,5 @@ WORKSPACE_DIR="${WORKSPACE_DIR}" \
 echo
 log "================================================================"
 log "Update complete - no containers were restarted and no data was removed."
-log "Scripts updated from: $(git -C "${SCRIPT_DIR}/.." log -1 --format='%h %s' 2>/dev/null || echo 'unknown')"
+log "Scripts updated from: $(git -C "${REPO_ROOT}" log -1 --format='%h %s' 2>/dev/null || echo 'unknown')"
 log "================================================================"

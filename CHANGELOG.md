@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.18] - 2026-03-23
+
+### Added / Changed
+
+- `bootstrap/update.sh` now works in both local-repo mode and `curl ... | sudo bash` mode.
+- When no local repo context is available, the update flow now clones the repository into a temporary directory and sources `bootstrap.sh` and `audit.sh` from there.
+- This fixes the broken one-line lossless update path that previously failed before any new True Recall code could reach the server.
+
+### 新增 / 调整
+
+- `bootstrap/update.sh` 现在同时支持本地 repo 模式和 `curl ... | sudo bash` 模式。
+- 当没有本地 repo 上下文时，更新流程会先把仓库临时 clone 到临时目录，再从那里加载 `bootstrap.sh` 与 `audit.sh`。
+- 这修复了之前“一行无损更新”在真正下发新 True Recall 代码前就提前失败的问题。
+
 ## [2.0.17] - 2026-03-23
 
 ### Added / Changed
