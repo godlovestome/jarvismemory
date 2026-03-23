@@ -61,12 +61,14 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
-        self.assertIn('Jarvis Memory v2.0.16', read_text(README))
-        self.assertIn('2.0.16', read_text(CHANGELOG))
-        self.assertIn('bootstrap/update.sh', read_text(README))
-        self.assertIn('面向 OpenClaw 的持久记忆层', read_text(README))
-        self.assertIn('一行代码无损更新', read_text(README))
-        self.assertIn('一行代码全新安装', read_text(README))
+        readme = read_text(README)
+        changelog = read_text(CHANGELOG)
+        self.assertIn('Jarvis Memory v2.0.17', readme)
+        self.assertIn('2.0.17', changelog)
+        self.assertIn('bootstrap/update.sh', readme)
+        self.assertIn('面向 OpenClaw 的持久记忆层', readme)
+        self.assertIn('一行代码无损更新', readme)
+        self.assertIn('一行代码全新安装', readme)
 
     def test_curator_fallback_matches_bootstrap_default(self) -> None:
         text = read_text(CURATOR)
@@ -74,6 +76,8 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('CURATION_TIMEOUT_SECONDS = int(os.getenv("CURATION_TIMEOUT_SECONDS", "1200"))', text)
         self.assertIn('CURATION_NUM_PREDICT = int(os.getenv("CURATION_NUM_PREDICT", "1200"))', text)
         self.assertIn('"format": "json"', text)
+        self.assertIn('def normalize_staged_turns(', text)
+        self.assertIn('def normalize_gem_payload(', text)
 
     def test_curator_uses_codeshield_qdrant_api_key_when_storing_gems(self) -> None:
         text = read_text(CURATOR)
@@ -82,7 +86,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('headers=_qdrant_headers()', text)
         self.assertIn('points?wait=true', text)
         self.assertIn('response.raise_for_status()', text)
-        self.assertIn('response.status_code in (200, 202)', text)
+        self.assertIn('Qdrant store failed:', text)
 
     def test_bootstrap_installs_and_configures_true_recall_plugin(self) -> None:
         text = read_text(BOOTSTRAP)
@@ -115,7 +119,7 @@ class RuntimePathTests(unittest.TestCase):
         index = read_text(PLUGIN_INDEX)
 
         self.assertIn('"name": "@godlovestome/memory-qdrant"', package)
-        self.assertIn('"version": "2.0.16"', package)
+        self.assertIn('"version": "2.0.17"', package)
         self.assertIn('"./index.ts"', package)
         self.assertIn('"id": "memory-qdrant"', manifest)
         self.assertIn('"kind": "memory"', manifest)
@@ -132,9 +136,9 @@ class RuntimePathTests(unittest.TestCase):
         template = read_text(TEMPLATE_ENV)
 
         self.assertIn('/run/openclaw-memory/secrets.env', readme)
-        self.assertIn('不会写入 `.memory_env`', readme)
+        self.assertIn('不会把 Qdrant API key 等受保护密钥写入 `.memory_env`', readme)
         self.assertIn('重建 True Recall gems', readme)
-        self.assertIn('2.0.16', changelog)
+        self.assertIn('2.0.17', changelog)
         self.assertIn('CodeShield-managed secrets stay outside .memory_env', update)
         self.assertIn('QDRANT_API_KEY managed by CodeShield - sourced from restricted path', template)
 

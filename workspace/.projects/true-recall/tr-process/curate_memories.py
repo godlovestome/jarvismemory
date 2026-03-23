@@ -10,13 +10,12 @@ same source turns into `kimi_memories` on its own schedule.
 """
 
 import argparse
-import hashlib
 import json
 import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import redis
 import requests
@@ -60,7 +59,7 @@ def get_redis_client() -> redis.Redis:
 
 def get_staged_turns(user_id: str, hours: int = 24) -> List[Dict[str, Any]]:
     items = get_redis_client().lrange(f"mem:{user_id}", 0, -1)
-    turns: List[Dict[str, Any]] = []
+    staged_messages: List[Dict[str, Any]] = []
 
     for item in items:
         try:
@@ -78,10 +77,217 @@ def get_staged_turns(user_id: str, hours: int = 24) -> List[Dict[str, Any]]:
             if turn_time < cutoff:
                 continue
 
-        turns.append(turn)
+        staged_messages.append(turn)
 
-    turns.sort(key=lambda value: value.get("turn", 0))
+    return normalize_staged_turns(staged_messages)
+
+
+def _parse_timestamp(raw_value: Any) -> Optional[datetime]:
+    if not raw_value or not isinstance(raw_value, str):
+        return None
+    try:
+        return datetime.fromisoformat(raw_value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _iso_or_default(raw_value: Any) -> str:
+    parsed = _parse_timestamp(raw_value)
+    if parsed is not None:
+        return parsed.isoformat()
+    return datetime.utcnow().isoformat() + "+00:00"
+
+
+def normalize_staged_turns(staged_messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not staged_messages:
+        return []
+
+    if all("user_message" in item and "ai_response" in item for item in staged_messages):
+        normalized = []
+        for index, item in enumerate(staged_messages, start=1):
+            timestamp = _iso_or_default(item.get("timestamp"))
+            normalized.append(
+                {
+                    "user_id": item.get("user_id", ""),
+                    "user_message": str(item.get("user_message", "")).strip(),
+                    "ai_response": str(item.get("ai_response", "")).strip(),
+                    "turn": int(item.get("turn", index)),
+                    "timestamp": timestamp,
+                    "date": item.get("date") or timestamp[:10],
+                    "conversation_id": str(
+                        item.get("conversation_id") or item.get("session") or "unknown-session"
+                    ),
+                }
+            )
+        normalized.sort(key=lambda value: value.get("turn", 0))
+        return normalized
+
+    def sort_key(value: Dict[str, Any]) -> tuple[str, str]:
+        return (
+            str(value.get("session") or "unknown-session"),
+            _iso_or_default(value.get("timestamp")),
+        )
+
+    turns: List[Dict[str, Any]] = []
+    pending_by_session: Dict[str, Dict[str, Any]] = {}
+    next_turn_by_session: Dict[str, int] = {}
+
+    for message in sorted(staged_messages, key=sort_key):
+        role = str(message.get("role", "")).strip()
+        if role not in {"user", "assistant"}:
+            continue
+
+        session_id = str(message.get("session") or "unknown-session")
+        content = str(message.get("content", "")).strip()
+        if not content:
+            continue
+
+        timestamp = _iso_or_default(message.get("timestamp"))
+        user_id = str(message.get("user_id", "")).strip()
+        turn_number = next_turn_by_session.setdefault(session_id, 1)
+        pending = pending_by_session.get(session_id)
+
+        if role == "user":
+            if pending and pending.get("user_message") and not pending.get("ai_response"):
+                pending["user_message"] = f"{pending['user_message']}\n{content}".strip()
+                pending["timestamp"] = timestamp
+                pending["date"] = timestamp[:10]
+                continue
+
+            if pending and pending.get("user_message") and pending.get("ai_response"):
+                turns.append(pending)
+                next_turn_by_session[session_id] = int(pending["turn"]) + 1
+                turn_number = next_turn_by_session[session_id]
+
+            pending_by_session[session_id] = {
+                "user_id": user_id,
+                "user_message": content,
+                "ai_response": "",
+                "turn": turn_number,
+                "timestamp": timestamp,
+                "date": timestamp[:10],
+                "conversation_id": session_id,
+            }
+            continue
+
+        if pending and pending.get("user_message"):
+            pending["ai_response"] = f"{pending.get('ai_response', '')}\n{content}".strip()
+            pending["timestamp"] = timestamp
+            pending["date"] = timestamp[:10]
+            turns.append(pending)
+            next_turn_by_session[session_id] = int(pending["turn"]) + 1
+            pending_by_session.pop(session_id, None)
+
+    turns.sort(key=lambda value: (value.get("conversation_id", ""), value.get("turn", 0)))
     return turns
+
+
+def _join_snippet(turns: List[Dict[str, Any]]) -> str:
+    parts: List[str] = []
+    for turn in turns:
+        user_message = str(turn.get("user_message", "")).strip()
+        ai_response = str(turn.get("ai_response", "")).strip()
+        if user_message:
+            parts.append(f"User: {user_message}")
+        if ai_response:
+            parts.append(f"Assistant: {ai_response}")
+    return "\n".join(parts)
+
+
+def normalize_gem_payload(
+    gem: Dict[str, Any],
+    turns: List[Dict[str, Any]],
+    user_id: str,
+) -> Optional[Dict[str, Any]]:
+    if not isinstance(gem, dict):
+        return None
+
+    gem_text = str(gem.get("gem", "")).strip()
+    if not gem_text:
+        return None
+
+    normalized_turns = [turn for turn in turns if isinstance(turn, dict)]
+    if not normalized_turns:
+        return None
+
+    indexed_turns = {
+        int(turn["turn"]): turn
+        for turn in normalized_turns
+        if str(turn.get("turn", "")).isdigit() or isinstance(turn.get("turn"), int)
+    }
+
+    source_turns = gem.get("source_turns") or []
+    parsed_source_turns = sorted(
+        {
+            int(turn)
+            for turn in source_turns
+            if isinstance(turn, int) or (isinstance(turn, str) and turn.isdigit())
+        }
+    )
+    if not parsed_source_turns and indexed_turns:
+        parsed_source_turns = sorted(indexed_turns.keys())[:2]
+
+    selected_turns = [indexed_turns[turn] for turn in parsed_source_turns if turn in indexed_turns]
+    if not selected_turns:
+        selected_turns = normalized_turns[: min(len(normalized_turns), 2)]
+        parsed_source_turns = [int(turn["turn"]) for turn in selected_turns if "turn" in turn]
+
+    last_turn = selected_turns[-1]
+    first_turn = selected_turns[0]
+    context = str(gem.get("context", "")).strip()
+    snippet = str(gem.get("snippet", "")).strip() or _join_snippet(selected_turns)
+    categories = [
+        str(value).strip()
+        for value in (gem.get("categories") or [])
+        if str(value).strip()
+    ]
+    if not categories:
+        categories = ["technical"]
+    categories = categories[:5]
+
+    importance = str(gem.get("importance", "medium")).strip().lower()
+    if importance not in {"medium", "high"}:
+        importance = "medium"
+
+    try:
+        confidence = float(gem.get("confidence", 0.8))
+    except (TypeError, ValueError):
+        confidence = 0.8
+    confidence = max(0.6, min(confidence, 1.0))
+
+    timestamp = str(gem.get("timestamp") or last_turn.get("timestamp") or "").strip()
+    timestamp = _iso_or_default(timestamp)
+    date = str(gem.get("date") or timestamp[:10]).strip() or timestamp[:10]
+
+    conversation_id = str(
+        gem.get("conversation_id")
+        or last_turn.get("conversation_id")
+        or first_turn.get("conversation_id")
+        or "unknown-session"
+    ).strip()
+    if not conversation_id:
+        conversation_id = "unknown-session"
+
+    if parsed_source_turns:
+        turn_range = f"{parsed_source_turns[0]}-{parsed_source_turns[-1]}"
+    else:
+        turn_range = str(gem.get("turn_range", "")).strip() or "0-0"
+
+    normalized = {
+        "gem": gem_text,
+        "context": context or gem_text,
+        "snippet": snippet,
+        "categories": categories,
+        "importance": importance,
+        "confidence": confidence,
+        "timestamp": timestamp,
+        "date": date,
+        "conversation_id": conversation_id,
+        "turn_range": turn_range,
+        "source_turns": parsed_source_turns,
+        "user_id": user_id,
+    }
+    return normalized
 
 
 def extract_gems_with_curator(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -155,10 +361,11 @@ def store_gem_to_qdrant(gem: Dict[str, Any], user_id: str) -> bool:
     ).strip()
     vector = get_embedding(embedding_text)
 
-    hash_bytes = hashlib.sha256(
-        f"{user_id}:{gem.get('conversation_id', '')}:{gem.get('turn_range', '')}".encode("utf-8")
-    ).digest()[:8]
-    gem_id = int.from_bytes(hash_bytes, byteorder="big") % (2**63)
+    gem_id = re.sub(
+        r"[^a-zA-Z0-9_-]",
+        "-",
+        f"{user_id}-{gem.get('conversation_id', 'unknown')}-{gem.get('turn_range', '0-0')}",
+    )[:128]
 
     response = requests.put(
         f"{QDRANT_URL.rstrip('/')}/collections/{QDRANT_COLLECTION}/points?wait=true",
@@ -174,6 +381,8 @@ def store_gem_to_qdrant(gem: Dict[str, Any], user_id: str) -> bool:
         headers=_qdrant_headers(),
         timeout=120,
     )
+    if response.status_code not in (200, 202):
+        print(f"Qdrant store failed: {response.status_code} {response.text[:1000]}")
     response.raise_for_status()
     return response.status_code in (200, 202)
 
@@ -200,10 +409,20 @@ def main() -> None:
         print("No turns to process.")
         return
 
-    gems = extract_gems_with_curator(turns)
-    print(f"Gems extracted: {len(gems)}")
-    if not gems:
+    raw_gems = extract_gems_with_curator(turns)
+    print(f"Gems extracted: {len(raw_gems)}")
+    if not raw_gems:
         print("No gems extracted. Redis buffer preserved for Jarvis Memory.")
+        return
+
+    gems: List[Dict[str, Any]] = []
+    for gem in raw_gems:
+        normalized = normalize_gem_payload(gem, turns, args.user_id)
+        if normalized is not None:
+            gems.append(normalized)
+
+    if not gems:
+        print("No valid gems after normalization. Redis buffer preserved for Jarvis Memory.")
         return
 
     for index, gem in enumerate(gems[:3], start=1):
@@ -215,8 +434,11 @@ def main() -> None:
 
     stored = 0
     for gem in gems:
-        if store_gem_to_qdrant(gem, args.user_id):
-            stored += 1
+        try:
+            if store_gem_to_qdrant(gem, args.user_id):
+                stored += 1
+        except requests.RequestException as exc:
+            print(f"Failed to store gem: {exc}")
 
     print(f"Stored {stored}/{len(gems)} gems")
     print("Redis buffer preserved for Jarvis Memory backup.")
