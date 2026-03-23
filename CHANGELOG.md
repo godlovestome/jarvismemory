@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.10] - 2026-03-23
+
+### Fixed / 修复
+
+- Made `session_runtime.py` skip unreadable session directories so CodeShield-isolated runtimes no longer crash `cron_capture.py` when `/var/lib/openclaw-svc/.../sessions` is temporarily inaccessible.
+- Changed the managed cron block to run `sliding_backup.sh` through `/bin/bash`, avoiding backup failures on older deployments where the execute bit was missing.
+- Refreshed the README and changelog as clean UTF-8 bilingual documents and added explicit ops-check commands for cron pickup, curator output, and Redis staging.
+
+- 让 `session_runtime.py` 在遇到不可读的 session 目录时自动跳过，这样 CodeShield 隔离运行时下即使 `/var/lib/openclaw-svc/.../sessions` 暂时不可访问，也不会再把 `cron_capture.py` 直接打崩。
+- 将托管 cron 中的 `sliding_backup.sh` 改为通过 `/bin/bash` 执行，避免旧部署因执行位丢失而导致备份任务失败。
+- 将 README 与 changelog 刷新为干净的 UTF-8 中英双语文档，并补充 cron 拾取、curator 输出、Redis 暂存的显式检查命令。
+
 ## [2.0.9] - 2026-03-23
 
 ### Fixed / 修复

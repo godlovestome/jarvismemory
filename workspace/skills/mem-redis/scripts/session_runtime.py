@@ -27,10 +27,17 @@ def _unique_paths(paths: Iterable[Path]) -> List[Path]:
     return unique
 
 
+def _is_readable_dir(path: Path) -> bool:
+    try:
+        return path.is_dir()
+    except OSError:
+        return False
+
+
 def discover_session_dirs(explicit_dir: Optional[str] = None) -> List[Path]:
     if explicit_dir:
         path = Path(explicit_dir).expanduser()
-        return [path] if path.is_dir() else []
+        return [path] if _is_readable_dir(path) else []
 
     default_home_sessions = Path.home() / ".openclaw" / "agents" / "main" / "sessions"
     default_service_sessions = Path("/var/lib/openclaw-svc/.openclaw/agents/main/sessions")
@@ -44,13 +51,26 @@ def discover_session_dirs(explicit_dir: Optional[str] = None) -> List[Path]:
     ]
 
     paths = [Path(value).expanduser() for value in candidates if value]
-    return [path for path in _unique_paths(paths) if path.is_dir()]
+    return [path for path in _unique_paths(paths) if _is_readable_dir(path)]
 
 
 def find_latest_transcript(session_dirs: Sequence[Path]) -> Optional[Path]:
     transcripts: List[Path] = []
     for session_dir in session_dirs:
-        transcripts.extend(path for path in session_dir.glob("*.jsonl") if path.is_file())
+        try:
+            transcripts.extend(path for path in session_dir.glob("*.jsonl") if path.is_file())
+        except OSError:
+            continue
     if not transcripts:
         return None
-    return max(transcripts, key=lambda path: path.stat().st_mtime)
+    try:
+        return max(transcripts, key=lambda path: path.stat().st_mtime)
+    except OSError:
+        readable = []
+        for transcript in transcripts:
+            try:
+                transcript.stat()
+            except OSError:
+                continue
+            readable.append(transcript)
+        return max(readable, key=lambda path: path.stat().st_mtime) if readable else None

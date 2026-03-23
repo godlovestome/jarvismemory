@@ -413,7 +413,7 @@ block = [
     f"{capture} source {home}/.memory_env && cd {workspace} && {python_bin} {workspace}/skills/mem-redis/scripts/cron_capture.py --user-id $USER_ID >> /var/log/memory-capture.log 2>&1",
     f"{curate} source {home}/.memory_env && cd {workspace}/.projects/true-recall && {python_bin} {workspace}/.projects/true-recall/tr-process/curate_memories.py --user-id $USER_ID >> /var/log/true-recall-curator.log 2>&1",
     f"{backup} source {home}/.memory_env && cd {workspace} && {python_bin} {workspace}/skills/mem-redis/scripts/cron_backup.py --user-id $USER_ID >> /var/log/memory-backup.log 2>&1",
-    f"{sliding} source {home}/.memory_env && {workspace}/skills/qdrant-memory/scripts/sliding_backup.sh >> /var/log/memory-backup.log 2>&1",
+    f"{sliding} source {home}/.memory_env && /bin/bash {workspace}/skills/qdrant-memory/scripts/sliding_backup.sh >> /var/log/memory-backup.log 2>&1",
     end,
 ]
 

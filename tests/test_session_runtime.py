@@ -6,6 +6,7 @@ import shutil
 import unittest
 import uuid
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -85,6 +86,34 @@ class SessionRuntimeTests(unittest.TestCase):
         selected = module.find_latest_transcript(module.discover_session_dirs())
 
         self.assertEqual(selected, home_file)
+
+    def test_ignores_unreadable_service_runtime_and_keeps_readable_home_dir(self) -> None:
+        module = load_module()
+
+        root = self.make_sandbox()
+        home_dir = root / "home-sessions"
+        service_dir = root / "service-sessions"
+        home_dir.mkdir()
+        service_dir.mkdir()
+
+        home_file = home_dir / "current.jsonl"
+        home_file.write_text('{"type":"message"}\n', encoding="utf-8")
+
+        os.environ["OPENCLAW_HOME_SESSIONS_DIR"] = str(home_dir)
+        os.environ["OPENCLAW_SERVICE_SESSIONS_DIR"] = str(service_dir)
+        os.environ["OPENCLAW_SESSIONS_DIR"] = str(home_dir)
+
+        original_is_dir = module.Path.is_dir
+
+        def fake_is_dir(path_obj):
+            if str(path_obj) == str(service_dir):
+                raise PermissionError("service runtime is not readable")
+            return original_is_dir(path_obj)
+
+        with mock.patch.object(module.Path, "is_dir", autospec=True, side_effect=fake_is_dir):
+            discovered = module.discover_session_dirs()
+
+        self.assertEqual(discovered, [home_dir])
 
 
 if __name__ == "__main__":

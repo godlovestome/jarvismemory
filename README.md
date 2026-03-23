@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.9
+# Jarvis Memory v2.0.10
 
 **Persistent Memory for OpenClaw**  
 **面向 OpenClaw 的持久记忆层**
@@ -11,25 +11,25 @@ Jarvis Memory + True Recall 是一套面向 OpenClaw 的跨会话持久记忆栈
 
 ## Version Focus / 版本重点
 
-`v2.0.9` focuses on secure CodeShield operation and safe True Recall rebuilding:
+`v2.0.10` focuses on reliable cron pickup inside the CodeShield runtime:
 
-- CodeShield-managed secrets stay outside `.memory_env`; runtime only sources them from `/run/openclaw-memory/secrets.env`.
-- The regular True Recall curator model is restored to `qwen3.5:35b-a3b`.
-- A new rebuild helper resets the `true_recall` collection, clears staged pickup state, and re-runs capture plus gem curation without moving secrets out of CodeShield.
-- README and changelog are refreshed as clean UTF-8 bilingual documents.
+- `cron_capture.py` now skips unreadable session directories instead of crashing when the isolated `openclaw-svc` runtime is temporarily not traversable.
+- Cron regeneration now runs `sliding_backup.sh` through `/bin/bash`, so backup jobs no longer depend on the executable bit surviving old deployments.
+- README and changelog stay as clean UTF-8 bilingual documents with one-line fresh install and one-line lossless update instructions.
 
-`v2.0.9` 重点放在 CodeShield 安全运行与 True Recall 安全重建：
+`v2.0.10` 重点放在 CodeShield 运行时下更稳定的定时拾取链路：
 
-- CodeShield 托管的密钥不会写入 `.memory_env`，运行时只会从 `/run/openclaw-memory/secrets.env` 读取。
-- True Recall 的常规 curator 模型恢复为 `qwen3.5:35b-a3b`。
-- 新增安全重建脚本，可重置 `true_recall` collection、清空拾取状态，并重新执行 capture 与 gem 提炼，全程不把密钥移出 CodeShield。
-- README 与 changelog 已刷新为干净的 UTF-8 双语文档。
+- 当隔离的 `openclaw-svc` session 目录暂时不可遍历时，`cron_capture.py` 现在会跳过不可读目录而不是直接崩溃。
+- 重建 cron 时改为通过 `/bin/bash` 执行 `sliding_backup.sh`，旧部署即使执行位丢失也不会让备份任务中断。
+- README 与 changelog 持续保持为干净的 UTF-8 中英双语文档，并保留一行代码全新安装与一行代码无损更新说明。
+- CodeShield 托管的密钥不会写入 `.memory_env`。
 
 ## CodeShield Compatibility / CodeShield 兼容性
 
 This repository is designed to run **inside** the CodeShield security model, not around it.
 
 - Secrets remain managed by CodeShield.
+- Runtime secrets are sourced only from `/run/openclaw-memory/secrets.env`.
 - OpenClaw can continue running as `openclaw-svc`.
 - Jarvis Memory cron jobs only read active session transcripts.
 - No Telegram token, Qdrant API key, or other protected secret needs to be copied into OpenClaw onboarding or plaintext repo config.
@@ -37,6 +37,7 @@ This repository is designed to run **inside** the CodeShield security model, not
 本仓库的设计目标是在 **CodeShield 安全框架之内** 运行，而不是绕过它。
 
 - 密钥继续由 CodeShield 接管。
+- 运行时密钥只从 `/run/openclaw-memory/secrets.env` 加载。
 - OpenClaw 可以继续以 `openclaw-svc` 身份运行。
 - Jarvis Memory 的 cron 只读取当前活跃的 session transcript。
 - Telegram token、Qdrant API key 等受保护密钥都不需要回填到 OpenClaw onboarding 或仓库明文配置里。
@@ -116,6 +117,28 @@ If a deployment still carries the temporary curator fallback `qwen3:14b`, `boots
 All times are based on the host timezone configured during bootstrap.
 
 以上时间均以 bootstrap 配置的宿主机时区为准。
+
+## Ops Checks / 运维检查
+
+Use these commands to confirm pickup and gem generation after deployment:
+
+```bash
+crontab -l -u openclaw
+tail -f /var/log/memory-capture.log
+tail -f /var/log/true-recall-curator.log
+tail -f /var/log/memory-backup.log
+redis-cli LLEN mem:$USER_ID
+```
+
+部署后如果要确认拾取与 gem 生成是否正常，可以使用这些命令：
+
+```bash
+crontab -l -u openclaw
+tail -f /var/log/memory-capture.log
+tail -f /var/log/true-recall-curator.log
+tail -f /var/log/memory-backup.log
+redis-cli LLEN mem:$USER_ID
+```
 
 ## Rebuild True Recall Gems / 重建 True Recall gems
 

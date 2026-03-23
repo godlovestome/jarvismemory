@@ -43,6 +43,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('configure_service_session_access()', text)
         self.assertIn('setfacl -m "u:${OPENCLAW_USER}:x"', text)
         self.assertIn('setfacl -d -m "u:${OPENCLAW_USER}:rx" "${SERVICE_SESSIONS_DIR}"', text)
+        self.assertIn('/bin/bash {workspace}/skills/qdrant-memory/scripts/sliding_backup.sh', text)
 
     def test_audit_reports_home_and_service_session_dirs(self) -> None:
         text = read_text(AUDIT)
@@ -55,8 +56,8 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
-        self.assertIn('Jarvis Memory v2.0.9', read_text(README))
-        self.assertIn('2.0.9', read_text(CHANGELOG))
+        self.assertIn('Jarvis Memory v2.0.10', read_text(README))
+        self.assertIn('2.0.10', read_text(CHANGELOG))
         self.assertIn('bootstrap/update.sh', read_text(README))
         self.assertIn('面向 OpenClaw 的持久记忆层', read_text(README))
         self.assertIn('一行代码无损更新', read_text(README))
@@ -78,7 +79,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('/run/openclaw-memory/secrets.env', readme)
         self.assertIn('CodeShield 托管的密钥不会写入 `.memory_env`', readme)
         self.assertIn('重建 True Recall gems', readme)
-        self.assertIn('2.0.9', changelog)
+        self.assertIn('2.0.10', changelog)
         self.assertIn('CodeShield-managed secrets stay outside .memory_env', update)
         self.assertIn('QDRANT_API_KEY managed by CodeShield - sourced from restricted path', template)
 
