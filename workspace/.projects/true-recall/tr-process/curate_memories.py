@@ -91,6 +91,7 @@ def extract_gems_with_curator(turns: List[Dict[str, Any]]) -> List[Dict[str, Any
                 f"{json.dumps(turns, indent=2)}\n"
                 "```\n\n## Output\n"
             ),
+            "format": "json",
             "stream": False,
             "options": {"temperature": 0.1, "num_predict": CURATION_NUM_PREDICT},
         },
@@ -108,10 +109,20 @@ def extract_gems_with_curator(turns: List[Dict[str, Any]]) -> List[Dict[str, Any
 
     try:
         gems = json.loads(output)
-    except json.JSONDecodeError as exc:
-        print(f"Error parsing curator output: {exc}")
-        print(output[:500])
-        return []
+    except json.JSONDecodeError:
+        start = min((idx for idx in (output.find("["), output.find("{")) if idx != -1), default=-1)
+        end = max(output.rfind("]"), output.rfind("}"))
+        if start != -1 and end != -1 and end > start:
+            try:
+                gems = json.loads(output[start : end + 1])
+            except json.JSONDecodeError as exc:
+                print(f"Error parsing curator output: {exc}")
+                print(output[:500])
+                return []
+        else:
+            print("Error parsing curator output: no JSON payload found")
+            print(output[:500])
+            return []
 
     if isinstance(gems, list):
         return gems

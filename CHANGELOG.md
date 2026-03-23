@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.8] - 2026-03-23
+
+### Fixed / 修复
+
+- Forced `format=json` for True Recall curator requests and added a JSON payload extraction fallback, reducing parse failures when the 35b model drifts into prose.
+
+- 为 True Recall curator 请求强制启用 `format=json`，并增加 JSON payload 提取兜底，降低 35b 模型输出自然语言时的解析失败。
+
 ## [2.0.7] - 2026-03-23
 
 ### Fixed / 修复

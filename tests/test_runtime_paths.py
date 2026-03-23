@@ -52,14 +52,16 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
-        self.assertIn('Jarvis Memory v2.0.7', read_text(README))
-        self.assertIn('2.0.7', read_text(CHANGELOG))
+        self.assertIn('Jarvis Memory v2.0.8', read_text(README))
+        self.assertIn('2.0.8', read_text(CHANGELOG))
         self.assertIn('bootstrap/update.sh', read_text(README))
 
     def test_curator_fallback_matches_bootstrap_default(self) -> None:
-        self.assertIn('CURATION_MODEL = os.getenv("CURATION_MODEL", "qwen3.5:35b-a3b")', read_text(CURATOR))
-        self.assertIn('CURATION_TIMEOUT_SECONDS = int(os.getenv("CURATION_TIMEOUT_SECONDS", "1200"))', read_text(CURATOR))
-        self.assertIn('CURATION_NUM_PREDICT = int(os.getenv("CURATION_NUM_PREDICT", "1200"))', read_text(CURATOR))
+        text = read_text(CURATOR)
+        self.assertIn('CURATION_MODEL = os.getenv("CURATION_MODEL", "qwen3.5:35b-a3b")', text)
+        self.assertIn('CURATION_TIMEOUT_SECONDS = int(os.getenv("CURATION_TIMEOUT_SECONDS", "1200"))', text)
+        self.assertIn('CURATION_NUM_PREDICT = int(os.getenv("CURATION_NUM_PREDICT", "1200"))', text)
+        self.assertIn('"format": "json"', text)
 
 
 if __name__ == '__main__':

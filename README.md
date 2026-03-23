@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.7
+# Jarvis Memory v2.0.8
 
 **Persistent Memory for OpenClaw**  
 **面向 OpenClaw 的持久记忆层**
@@ -11,16 +11,18 @@ Jarvis Memory + True Recall 是一套面向 OpenClaw 的跨会话持久记忆栈
 
 ## Version Focus / 版本重点
 
-`v2.0.7` restores the regular True Recall curator model for CodeShield-managed deployments:
+`v2.0.8` restores the regular True Recall curator model and hardens gem parsing for CodeShield-managed deployments:
 
 - True Recall cron still follows the live `openclaw-svc` session runtime under CodeShield and falls back safely to `/home/openclaw` when no isolated runtime exists.
 - The temporary fallback curator model `qwen3:14b` is normalized back to `qwen3.5:35b-a3b` for regular operation.
+- Curator requests now force `format=json` and use a JSON-only parser fallback, reducing failures when the model tries to answer in prose.
 - CodeShield-managed secrets stay outside `.memory_env`; runtime only sources them from the protected `/run/openclaw-memory/secrets.env` path.
 
-`v2.0.7` 将 CodeShield 托管部署下的 True Recall curator 恢复到常规模型：
+`v2.0.8` 将 CodeShield 托管部署下的 True Recall curator 恢复到常规模型，并加固 gems 解析链路：
 
 - True Recall 的 cron 仍会优先跟随 CodeShield 下真实运行的 `openclaw-svc` session 目录；如果没有隔离运行时，会安全回退到 `/home/openclaw`。
 - 临时回退使用的 curator 模型 `qwen3:14b` 会恢复到常规的 `qwen3.5:35b-a3b`。
+- Curator 请求现在会强制 `format=json`，并带有 JSON 解析兜底，减少模型输出自然语言时导致的失败。
 - CodeShield 托管的密钥不会写入 `.memory_env`；运行时只会从受保护的 `/run/openclaw-memory/secrets.env` 读取。
 
 ## CodeShield Compatibility / CodeShield 兼容性
