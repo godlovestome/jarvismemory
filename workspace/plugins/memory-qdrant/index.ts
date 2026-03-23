@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 type PluginConfig = {
   qdrantUrl?: string;
   collectionName?: string;
@@ -118,11 +120,29 @@ function extractLatestUserQuery(event: any): string {
 
 function qdrantHeaders(config: Required<PluginConfig>): HeadersInit {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const apiKey = process.env[config.apiKeyEnvVar];
+  const apiKey = resolveQdrantApiKey(config);
   if (apiKey) {
     headers["api-key"] = apiKey;
   }
   return headers;
+}
+
+function resolveQdrantApiKey(config: Required<PluginConfig>): string {
+  const envValue = process.env[config.apiKeyEnvVar];
+  if (envValue) {
+    return envValue;
+  }
+
+  try {
+    const content = readFileSync("/run/openclaw-memory/secrets.env", "utf-8");
+    const match = content.match(/^QDRANT_API_KEY=(.+)$/m);
+    if (!match) {
+      return "";
+    }
+    return match[1].trim().replace(/^['"]|['"]$/g, "");
+  } catch {
+    return "";
+  }
 }
 
 async function embedQuery(query: string, config: Required<PluginConfig>): Promise<number[]> {

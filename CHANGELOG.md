@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.14] - 2026-03-23
+
+### Added / Changed
+
+- `memory-qdrant` now falls back to the restricted CodeShield runtime secret file `/run/openclaw-memory/secrets.env` when `QDRANT_API_KEY` is not present in the process environment.
+- OpenClaw runtime config now pins `memory-qdrant` in `plugins.allow`, preventing untracked-local-plugin trust warnings while keeping trust explicit.
+- Refreshed the README and package version so the repository matches the hardened CodeShield runtime behavior.
+
+### 新增 / 调整
+
+- 当进程环境里没有 `QDRANT_API_KEY` 时，`memory-qdrant` 现在会回退读取受限的 CodeShield 运行时密钥文件 `/run/openclaw-memory/secrets.env`。
+- OpenClaw 运行时配置现在会把 `memory-qdrant` 固定写入 `plugins.allow`，在保持显式信任的同时，避免未追踪本地插件告警。
+- README 与插件版本号已同步更新，使仓库说明与加固后的 CodeShield 运行时行为保持一致。
+
 ## [2.0.13] - 2026-03-23
 
 ### Added / Changed

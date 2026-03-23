@@ -365,6 +365,9 @@ agents = cfg.setdefault("agents", {}).setdefault("defaults", {})
 agents["workspace"] = workspace_path
 
 plugins = cfg.setdefault('plugins', {})
+allow = plugins.setdefault('allow', [])
+if 'memory-qdrant' not in allow:
+    allow.append('memory-qdrant')
 entries = plugins.setdefault('entries', {})
 plugin = entries.setdefault('memory-qdrant', {})
 plugin['enabled'] = True
@@ -378,6 +381,7 @@ plugin['config'] = {
     'autoCapture': False,
     'maxRecallResults': 3,
     'minRecallScore': 0.5,
+    'apiKeyEnvVar': 'QDRANT_API_KEY',
 }
 
 path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

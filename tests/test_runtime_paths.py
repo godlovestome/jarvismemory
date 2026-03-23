@@ -61,8 +61,8 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
-        self.assertIn('Jarvis Memory v2.0.13', read_text(README))
-        self.assertIn('2.0.13', read_text(CHANGELOG))
+        self.assertIn('Jarvis Memory v2.0.14', read_text(README))
+        self.assertIn('2.0.14', read_text(CHANGELOG))
         self.assertIn('bootstrap/update.sh', read_text(README))
         self.assertIn('面向 OpenClaw 的持久记忆层', read_text(README))
         self.assertIn('一行代码无损更新', read_text(README))
@@ -95,6 +95,9 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn("'embeddingModel': os.environ.get('EMBEDDING_MODEL', 'mxbai-embed-large')", text)
         self.assertIn("'autoRecall': True", text)
         self.assertIn("plugins = cfg.setdefault('plugins', {})", text)
+        self.assertIn("allow = plugins.setdefault('allow', [])", text)
+        self.assertIn("allow.append('memory-qdrant')", text)
+        self.assertIn("'apiKeyEnvVar': 'QDRANT_API_KEY'", text)
 
     def test_plugin_package_exists_with_manifest_and_entrypoint(self) -> None:
         self.assertTrue(PLUGIN_PACKAGE.exists(), PLUGIN_PACKAGE)
@@ -105,12 +108,15 @@ class RuntimePathTests(unittest.TestCase):
         index = read_text(PLUGIN_INDEX)
 
         self.assertIn('"name": "@godlovestome/memory-qdrant"', package)
+        self.assertIn('"version": "2.0.14"', package)
         self.assertIn('"./index.ts"', package)
         self.assertIn('"id": "memory-qdrant"', manifest)
         self.assertIn('"kind": "memory"', manifest)
         self.assertIn('before_agent_start', index)
         self.assertIn('true_recall', index)
         self.assertIn('127.0.0.1:6333', index)
+        self.assertIn('/run/openclaw-memory/secrets.env', index)
+        self.assertIn('resolveQdrantApiKey', index)
 
     def test_codeshield_secret_handling_and_rebuild_workflow_are_documented(self) -> None:
         readme = read_text(README)
@@ -121,7 +127,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('/run/openclaw-memory/secrets.env', readme)
         self.assertIn('不会写入 `.memory_env`', readme)
         self.assertIn('重建 True Recall gems', readme)
-        self.assertIn('2.0.13', changelog)
+        self.assertIn('2.0.14', changelog)
         self.assertIn('CodeShield-managed secrets stay outside .memory_env', update)
         self.assertIn('QDRANT_API_KEY managed by CodeShield - sourced from restricted path', template)
 

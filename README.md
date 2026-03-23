@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.13
+# Jarvis Memory v2.0.14
 
 **Persistent Memory for OpenClaw**  
 **面向 OpenClaw 的持久记忆层**
@@ -11,20 +11,22 @@ Jarvis Memory + True Recall 为 OpenClaw 提供跨会话持久记忆能力。Red
 
 ## Version Focus / 版本重点
 
-`v2.0.13` fixes the missing True Recall recall path under CodeShield:
+`v2.0.14` hardens the True Recall recall path under CodeShield:
 
 - `memory-qdrant` is now a real installable OpenClaw plugin, not just a stale config entry.
 - `bootstrap.sh` and `bootstrap/update.sh` install and enable the plugin for both `openclaw` and `openclaw-svc` runtimes.
 - Plugin recall is limited to local `127.0.0.1` Qdrant and Ollama endpoints, keeping retrieval inside the CodeShield boundary.
 - Plugin config carries only non-secret runtime values; Qdrant credentials still come only from `/run/openclaw-memory/secrets.env`.
+- OpenClaw runtime now pins `memory-qdrant` in `plugins.allow`, so the plugin is treated as an explicitly trusted CodeShield-managed component.
 - The default curator model remains `qwen3.5:35b-a3b`, and legacy fallback `qwen3:14b` is still normalized back automatically.
 
-`v2.0.13` 重点修复 CodeShield 框架下 True Recall 召回链路缺失的问题：
+`v2.0.14` 重点加固 CodeShield 框架下的 True Recall 召回链路：
 
 - `memory-qdrant` 现在是真正可安装的 OpenClaw 插件，不再只是一个会被忽略的配置项。
 - `bootstrap.sh` 与 `bootstrap/update.sh` 会为 `openclaw` 和 `openclaw-svc` 两套运行时安装并启用该插件。
 - 插件召回只允许访问本机 `127.0.0.1` 的 Qdrant 与 Ollama，保证检索始终留在 CodeShield 边界内。
 - 插件配置只写入非敏感运行参数；Qdrant 密钥仍然只从 `/run/openclaw-memory/secrets.env` 加载。
+- OpenClaw 运行时现在会把 `memory-qdrant` 固定写入 `plugins.allow`，把它明确标记为受信任的 CodeShield 托管插件。
 - 默认 curator 模型保持为 `qwen3.5:35b-a3b`，旧的临时回退模型 `qwen3:14b` 仍会自动纠正回来。
 
 ## CodeShield Compatibility / CodeShield 兼容性

@@ -1,6 +1,6 @@
 {
   "name": "@godlovestome/memory-qdrant",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "private": true,
   "description": "OpenClaw True Recall plugin backed by local Qdrant and Ollama under CodeShield",
   "type": "module",
