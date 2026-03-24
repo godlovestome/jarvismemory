@@ -55,6 +55,18 @@ run_as_openclaw() {
   su -s /bin/bash "${OPENCLAW_USER}" -c "source '${ENV_FILE}' && ${command_text}"
 }
 
+probe_transcript_visibility() {
+  local session_dir="${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions"
+  [[ -d "${session_dir}" ]] || return 0
+
+  local visible_count
+  if visible_count="$(run_as_openclaw "find '${session_dir}' -maxdepth 1 -name '*.jsonl' -type f 2>/dev/null | wc -l" 2>/dev/null)"; then
+    log "Visible transcripts for ${OPENCLAW_USER}: ${visible_count}"
+  else
+    log "Visible transcripts for ${OPENCLAW_USER}: probe failed"
+  fi
+}
+
 capture_command() {
   local base_cmd="'${PYTHON_BIN}' '${CAPTURE_SCRIPT}' --user-id '${USER_ID}'"
   if [[ -d "${SERVICE_OPENCLAW_HOME}/.openclaw" && -d "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions" ]]; then
@@ -91,6 +103,9 @@ rm -f "${SERVICE_STATE_FILE}"
 
 log "Repairing service session ACLs"
 repair_service_session_access
+
+log "Probing transcript visibility"
+probe_transcript_visibility
 
 log "Recreating true_recall collection"
 "${PYTHON_BIN}" - <<'PY'
@@ -133,7 +148,9 @@ with urllib.request.urlopen(create_req, timeout=30) as resp:
 PY
 
 log "Re-running transcript capture"
-run_as_openclaw "$(capture_command)"
+CAPTURE_CMD="$(capture_command)"
+log "Capture command: ${CAPTURE_CMD}"
+run_as_openclaw "${CAPTURE_CMD}"
 
 log "Re-running gem curation"
 run_as_openclaw "'${PYTHON_BIN}' '${CURATOR_SCRIPT}' --user-id '${USER_ID}' --hours 0"

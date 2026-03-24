@@ -11,8 +11,9 @@ runtime with the newest transcript activity instead of assuming one fixed path.
 from __future__ import annotations
 
 import os
+import stat as stat_module
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 
 def _unique_paths(paths: Iterable[Path]) -> List[Path]:
@@ -27,9 +28,13 @@ def _unique_paths(paths: Iterable[Path]) -> List[Path]:
     return unique
 
 
-def _is_readable_dir(path: Path) -> bool:
+def _is_listable_dir(path: Path) -> bool:
     try:
-        return path.is_dir()
+        if not path.is_dir():
+            return False
+        iterator = path.iterdir()
+        next(iterator, None)
+        return True
     except OSError:
         return False
 
@@ -37,7 +42,7 @@ def _is_readable_dir(path: Path) -> bool:
 def discover_session_dirs(explicit_dir: Optional[str] = None) -> List[Path]:
     if explicit_dir:
         path = Path(explicit_dir).expanduser()
-        return [path] if _is_readable_dir(path) else []
+        return [path] if _is_listable_dir(path) else []
 
     default_home_sessions = Path.home() / ".openclaw" / "agents" / "main" / "sessions"
     default_service_sessions = Path("/var/lib/openclaw-svc/.openclaw/agents/main/sessions")
@@ -51,43 +56,39 @@ def discover_session_dirs(explicit_dir: Optional[str] = None) -> List[Path]:
     ]
 
     paths = [Path(value).expanduser() for value in candidates if value]
-    return [path for path in _unique_paths(paths) if _is_readable_dir(path)]
+    return [path for path in _unique_paths(paths) if _is_listable_dir(path)]
+
+
+def _readable_transcript_entries(session_dir: Path) -> List[Tuple[float, Path]]:
+    entries: List[Tuple[float, Path]] = []
+    try:
+        candidates = list(session_dir.glob("*.jsonl"))
+    except OSError:
+        return entries
+
+    for transcript in candidates:
+        try:
+            stat_result = transcript.stat()
+        except OSError:
+            continue
+        if not stat_module.S_ISREG(stat_result.st_mode):
+            continue
+        entries.append((stat_result.st_mtime, transcript))
+    return entries
 
 
 def find_latest_transcript(session_dirs: Sequence[Path]) -> Optional[Path]:
     for session_dir in session_dirs:
-        transcripts: List[Path] = []
-        try:
-            transcripts.extend(path for path in session_dir.glob("*.jsonl") if path.is_file())
-        except OSError:
+        readable = _readable_transcript_entries(session_dir)
+        if not readable:
             continue
-        if not transcripts:
-            continue
-        readable = []
-        for transcript in transcripts:
-            try:
-                transcript.stat()
-            except OSError:
-                continue
-            readable.append(transcript)
-        if readable:
-            return max(readable, key=lambda path: path.stat().st_mtime)
+        return max(readable, key=lambda item: item[0])[1]
     return None
 
 
 def find_all_transcripts(session_dirs: Sequence[Path]) -> List[Path]:
     transcripts: List[Path] = []
     for session_dir in session_dirs:
-        try:
-            candidates = [path for path in session_dir.glob("*.jsonl") if path.is_file()]
-        except OSError:
-            continue
-        readable: List[Path] = []
-        for transcript in candidates:
-            try:
-                transcript.stat()
-            except OSError:
-                continue
-            readable.append(transcript)
-        transcripts.extend(sorted(readable, key=lambda path: path.stat().st_mtime))
+        readable = sorted(_readable_transcript_entries(session_dir), key=lambda item: item[0])
+        transcripts.extend(path for _, path in readable)
     return transcripts

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import io
 import importlib.util
 import os
 import shutil
@@ -18,12 +20,30 @@ MODULE_PATH = (
     / "scripts"
     / "session_runtime.py"
 )
+CRON_MODULE_PATH = (
+    REPO_ROOT
+    / "workspace"
+    / "skills"
+    / "mem-redis"
+    / "scripts"
+    / "cron_capture.py"
+)
+REBUILD_SCRIPT_PATH = REPO_ROOT / "bootstrap" / "rebuild_true_recall.sh"
 
 
 def load_module():
     spec = importlib.util.spec_from_file_location("session_runtime", MODULE_PATH)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load {MODULE_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_cron_module():
+    spec = importlib.util.spec_from_file_location("cron_capture", CRON_MODULE_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load {CRON_MODULE_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -168,6 +188,115 @@ class SessionRuntimeTests(unittest.TestCase):
             discovered = module.discover_session_dirs()
 
         self.assertEqual(discovered, [home_dir])
+
+    def test_discover_session_dirs_skips_directories_that_cannot_be_listed(self) -> None:
+        module = load_module()
+
+        root = self.make_sandbox()
+        readable_dir = root / "readable"
+        blocked_dir = root / "blocked"
+        readable_dir.mkdir()
+        blocked_dir.mkdir()
+
+        os.environ["OPENCLAW_HOME_SESSIONS_DIR"] = str(readable_dir)
+        os.environ["OPENCLAW_SERVICE_SESSIONS_DIR"] = str(blocked_dir)
+        os.environ["OPENCLAW_SESSIONS_DIR"] = str(readable_dir)
+
+        original_iterdir = module.Path.iterdir
+
+        def fake_iterdir(path_obj):
+            if str(path_obj) == str(blocked_dir):
+                raise PermissionError("blocked session directory")
+            return original_iterdir(path_obj)
+
+        with mock.patch.object(module.Path, "iterdir", autospec=True, side_effect=fake_iterdir):
+            discovered = module.discover_session_dirs()
+
+        self.assertEqual(discovered, [readable_dir])
+
+    def test_find_all_transcripts_keeps_readable_files_when_metadata_refresh_fails(self) -> None:
+        module = load_module()
+
+        root = self.make_sandbox()
+        session_dir = root / "sessions"
+        session_dir.mkdir()
+
+        first = session_dir / "first.jsonl"
+        second = session_dir / "second.jsonl"
+        third = session_dir / "third.jsonl"
+
+        first.write_text('{"type":"message"}\n', encoding="utf-8")
+        second.write_text('{"type":"message"}\n', encoding="utf-8")
+        third.write_text('{"type":"message"}\n', encoding="utf-8")
+
+        os.utime(first, (1000, 1000))
+        os.utime(second, (2000, 2000))
+        os.utime(third, (3000, 3000))
+
+        original_stat = module.Path.stat
+        stat_calls: dict[str, int] = {}
+
+        def fake_stat(path_obj, *args, **kwargs):
+            path_str = str(path_obj)
+            stat_calls[path_str] = stat_calls.get(path_str, 0) + 1
+            if path_obj == second and stat_calls[path_str] > 1:
+                raise OSError("metadata disappeared during sort")
+            return original_stat(path_obj, *args, **kwargs)
+
+        with mock.patch.object(module.Path, "stat", autospec=True, side_effect=fake_stat):
+            transcripts = module.find_all_transcripts([session_dir])
+
+        self.assertEqual(transcripts, [first, second, third])
+
+    def test_cron_capture_reports_no_transcript_diagnostics(self) -> None:
+        module = load_cron_module()
+
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(module, "discover_session_dirs", return_value=[]),
+            mock.patch.object(module.Path, "is_dir", autospec=True, return_value=False),
+            contextlib.redirect_stdout(stdout),
+        ):
+            with mock.patch.object(module.sys, "argv", ["cron_capture.py"]):
+                module.main()
+
+        output = stdout.getvalue()
+        self.assertIn("No session transcripts found", output)
+        self.assertIn("OPENCLAW_SERVICE_SESSIONS_DIR", output)
+        self.assertIn("--sessions-dir", output)
+
+    def test_cron_capture_dry_run_reports_source_visibility(self) -> None:
+        module = load_cron_module()
+
+        root = self.make_sandbox()
+        session_dir = root / "sessions"
+        session_dir.mkdir()
+        transcript = session_dir / "session.jsonl"
+        transcript.write_text(
+            '{"type":"message","message":{"role":"user","content":"hello"}}\n',
+            encoding="utf-8",
+        )
+
+        stdout = io.StringIO()
+        with (
+            mock.patch.object(module, "discover_session_dirs", return_value=[session_dir]),
+            mock.patch.object(module, "find_all_transcripts", return_value=[transcript]),
+            mock.patch.object(module, "append_to_redis", return_value=1),
+            mock.patch.object(module, "load_state", return_value={}),
+            mock.patch.object(module, "save_state"),
+            contextlib.redirect_stdout(stdout),
+        ):
+            with mock.patch.object(module.sys, "argv", ["cron_capture.py", "--dry-run"]):
+                module.main()
+
+        output = stdout.getvalue()
+        self.assertIn("DRY RUN", output)
+        self.assertIn(str(session_dir), output)
+        self.assertIn("would append", output)
+
+    def test_rebuild_script_logs_capture_command_for_visibility(self) -> None:
+        text = REBUILD_SCRIPT_PATH.read_text(encoding="utf-8", errors="replace")
+        self.assertIn('log "Capture command:', text)
 
 
 if __name__ == "__main__":

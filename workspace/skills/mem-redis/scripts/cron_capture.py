@@ -75,6 +75,23 @@ def save_state(state: Dict[str, Any]) -> None:
         print(f"[cron_capture] Warning: could not write state: {e}", file=sys.stderr)
 
 
+def _describe_transcript_source(transcripts: List[Path]) -> str:
+    parents = []
+    seen = set()
+    for transcript in transcripts:
+        parent = str(transcript.parent)
+        if parent in seen:
+            continue
+        seen.add(parent)
+        parents.append(parent)
+
+    if not parents:
+        return "no readable session directories"
+    if len(parents) == 1:
+        return parents[0]
+    return f"{len(parents)} transcript directories ({', '.join(parents)})"
+
+
 def extract_text_and_thinking(content: Any) -> Tuple[str, Optional[str]]:
     """Extract visible text and optional thinking from OpenClaw message content."""
     if isinstance(content, str):
@@ -197,11 +214,17 @@ def main() -> None:
             transcripts = [transcript]
 
     if not transcripts:
-        print("[cron_capture] No session transcripts found")
+        checked = ", ".join(str(path) for path in session_dirs) if session_dirs else "no readable session directories"
+        print(
+            "[cron_capture] No session transcripts found; "
+            f"checked {checked}. "
+            "Set --sessions-dir or OPENCLAW_SERVICE_SESSIONS_DIR/OPENCLAW_HOME_SESSIONS_DIR to point at a readable transcript directory."
+        )
         return
 
     st = load_state()
     total_count = 0
+    source_hint = _describe_transcript_source(transcripts)
     touched_parents = set()
 
     for transcript in transcripts:
@@ -230,13 +253,16 @@ def main() -> None:
 
     if total_count == 0:
         if args.dry_run:
-            print("[cron_capture] DRY RUN: no new user/assistant messages")
+            print(f"[cron_capture] DRY RUN: no new user/assistant messages from {source_hint}")
         else:
-            print("[cron_capture] No changes")
+            print(f"[cron_capture] No changes from {source_hint}")
         return
 
     if args.dry_run:
-        print(f"[cron_capture] DRY RUN: would append {total_count} messages to Redis mem:{args.user_id}")
+        print(
+            f"[cron_capture] DRY RUN: would append {total_count} messages to Redis mem:{args.user_id} "
+            f"from {source_hint}"
+        )
         return
 
     if len(touched_parents) == 1:

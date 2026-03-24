@@ -34,6 +34,7 @@ class RuntimePathTests(unittest.TestCase):
     def test_bootstrap_writes_service_memory_env_when_runtime_exists(self) -> None:
         text = read_text(BOOTSTRAP)
         self.assertIn('TIMEZONE="${TIMEZONE:-America/Los_Angeles}"', text)
+        self.assertIn('OPENCLAW_QMD_TIMEOUT_MS="${OPENCLAW_QMD_TIMEOUT_MS:-600000}"', text)
         self.assertIn('CRON_CAPTURE_SCHEDULE="${CRON_CAPTURE_SCHEDULE:-5 11 * * *}"', text)
         self.assertIn('TR_SCHEDULE="${TR_SCHEDULE:-30 11 * * *}"', text)
         self.assertIn('BACKUP_SCHEDULE="${BACKUP_SCHEDULE:-0 12 * * *}"', text)
@@ -93,6 +94,7 @@ class RuntimePathTests(unittest.TestCase):
 
     def test_bootstrap_installs_and_configures_true_recall_plugin(self) -> None:
         text = read_text(BOOTSTRAP)
+        self.assertIn('configure_openclaw_qmd()', text)
         self.assertIn('install_openclaw_true_recall_plugin()', text)
         self.assertIn('configure_openclaw_true_recall()', text)
         self.assertIn('plugins install', text)
@@ -102,6 +104,24 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('rsync -a --delete "${plugin_source}/" "${plugin_install_dir}/"', text)
         self.assertIn('chown -R root:root "${plugin_install_dir}"', text)
         self.assertIn("'apiKeyEnvVar': 'QDRANT_API_KEY'", text)
+
+    def test_bootstrap_configures_qmd_separately_from_true_recall(self) -> None:
+        text = read_text(BOOTSTRAP)
+        self.assertIn('QMD bootstrap', text)
+        self.assertIn('configure_openclaw_qmd()', text)
+        self.assertIn('memory = cfg.setdefault("memory", {})', text)
+        self.assertIn('memory["backend"] = "qmd"', text)
+        self.assertIn('memory["citations"] = "auto"', text)
+        self.assertIn('limits = qmd.setdefault("limits", {})', text)
+        self.assertIn('limits["timeoutMs"] = max(', text)
+        self.assertIn('qmd_timeout_ms = int(sys.argv[4])', text)
+        self.assertIn('existing_paths = qmd.setdefault("paths", [])', text)
+        self.assertIn('{"name": "docs", "path": f"{workspace_path}/docs", "pattern": "**/*.md"}', text)
+        self.assertIn('{"name": "memory", "path": f"{workspace_path}/memory", "pattern": "**/*.md"}', text)
+        self.assertIn("'collectionName': os.environ.get('TR_COLLECTION', 'true_recall')", text)
+        self.assertIn("'qdrantUrl': os.environ.get('QDRANT_URL', 'http://127.0.0.1:6333')", text)
+        self.assertIn('memory-qdrant', text)
+        self.assertIn('true_recall', text)
 
     def test_plugin_package_exists_with_manifest_and_entrypoint(self) -> None:
         self.assertTrue(PLUGIN_PACKAGE.exists(), PLUGIN_PACKAGE)
@@ -147,6 +167,21 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('--sessions-dir', rebuild)
         self.assertIn('--all-transcripts', rebuild)
         self.assertIn('repair_service_session_access()', rebuild)
+        self.assertIn('probe_transcript_visibility()', rebuild)
+        self.assertIn("Visible transcripts for", rebuild)
+
+    def test_audit_reports_qmd_and_true_recall_as_independent_chains(self) -> None:
+        text = read_text(AUDIT)
+        self.assertIn('--- 4. QMD chain ---', text)
+        self.assertIn('--- 5. True Recall chain ---', text)
+        self.assertIn('memory.backend', text)
+        self.assertIn('citations=auto', text)
+        self.assertIn('timeoutMs>=600000', text)
+        self.assertIn('collection=true_recall', text)
+        self.assertIn('OPENCLAW_SERVICE_SESSIONS_DIR', text)
+        self.assertIn('OPENCLAW_HOME_SESSIONS_DIR', text)
+        self.assertIn('memory-qdrant', text)
+        self.assertIn('can list service session directory', text)
 
 
 if __name__ == '__main__':

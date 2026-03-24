@@ -13,6 +13,7 @@ CURATION_MODEL="${CURATION_MODEL:-${DEFAULT_CURATION_MODEL}}"
 CURATION_TIMEOUT_SECONDS="${CURATION_TIMEOUT_SECONDS:-1200}"
 CURATION_NUM_PREDICT="${CURATION_NUM_PREDICT:-1200}"
 OPENCLAW_MEMORYSEARCH_MODEL="${OPENCLAW_MEMORYSEARCH_MODEL:-qwen3-embedding:4b}"
+OPENCLAW_QMD_TIMEOUT_MS="${OPENCLAW_QMD_TIMEOUT_MS:-600000}"
 OPENCLAW_HOME="${OPENCLAW_HOME:-/home/${OPENCLAW_USER}}"
 SERVICE_OPENCLAW_USER="${SERVICE_OPENCLAW_USER:-openclaw-svc}"
 SERVICE_OPENCLAW_HOME="${SERVICE_OPENCLAW_HOME:-/var/lib/${SERVICE_OPENCLAW_USER}}"
@@ -296,6 +297,79 @@ openclaw_json_paths() {
   if has_service_runtime; then
     printf '%s\n' "${SERVICE_OPENCLAW_HOME}/.openclaw/openclaw.json"
   fi
+}
+
+configure_openclaw_qmd() {
+  local json_file owner workspace_path runtime_home
+
+  while IFS= read -r json_file; do
+    [ -n "${json_file}" ] || continue
+    owner="${OPENCLAW_USER}"
+    workspace_path="${WORKSPACE_DIR}"
+    runtime_home="${OPENCLAW_HOME}"
+    if [[ "${json_file}" == "${SERVICE_OPENCLAW_HOME}/.openclaw/openclaw.json" ]]; then
+      owner="${SERVICE_OPENCLAW_USER}"
+      workspace_path="${SERVICE_WORKSPACE_DIR}"
+      runtime_home="${SERVICE_OPENCLAW_HOME}"
+    fi
+
+    install -d -o "${owner}" -g "${owner}" "$(dirname "${json_file}")"
+
+    python3 - "${json_file}" "${workspace_path}" "${runtime_home}" "${OPENCLAW_QMD_TIMEOUT_MS}" <<'PY'
+# QMD bootstrap
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+workspace_path = sys.argv[2]
+runtime_home = sys.argv[3]
+qmd_timeout_ms = int(sys.argv[4])
+cfg = {}
+if path.exists():
+    try:
+        cfg = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        cfg = {}
+
+memory = cfg.setdefault("memory", {})
+memory["backend"] = "qmd"
+memory["citations"] = "auto"
+qmd = memory.setdefault("qmd", {})
+qmd.setdefault("includeDefaultMemory", True)
+update = qmd.setdefault("update", {})
+update.setdefault("interval", "5m")
+update.setdefault("debounceMs", 15000)
+limits = qmd.setdefault("limits", {})
+limits.setdefault("maxResults", 6)
+limits["timeoutMs"] = max(int(limits.get("timeoutMs", 0) or 0), qmd_timeout_ms)
+default_paths = [
+    {"name": "docs", "path": f"{workspace_path}/docs", "pattern": "**/*.md"},
+    {"name": "memory", "path": f"{workspace_path}/memory", "pattern": "**/*.md"},
+]
+existing_paths = qmd.setdefault("paths", [])
+existing_keys = {
+    (str(item.get("name", "")).strip(), str(item.get("path", "")).strip())
+    for item in existing_paths
+    if isinstance(item, dict)
+}
+for item in default_paths:
+    key = (item["name"], item["path"])
+    if key not in existing_keys:
+        existing_paths.append(item)
+
+agents = cfg.setdefault("agents", {}).setdefault("defaults", {})
+agents["workspace"] = workspace_path
+
+cfg.setdefault("runtime", {})["home"] = runtime_home
+path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
+    chown "${owner}:${owner}" "${json_file}"
+    chmod 0600 "${json_file}"
+  done < <(openclaw_json_paths)
+
+  log "OpenClaw QMD configured: backend=qmd citations=auto timeoutMs>=${OPENCLAW_QMD_TIMEOUT_MS}"
 }
 
 install_openclaw_true_recall_plugin() {
@@ -627,6 +701,9 @@ main() {
 
   log "Configuring OpenClaw memorySearch (local Ollama)"
   configure_openclaw_memorysearch
+
+  log "Configuring OpenClaw QMD"
+  configure_openclaw_qmd
 
   log "Installing OpenClaw True Recall plugin"
   install_openclaw_true_recall_plugins
