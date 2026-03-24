@@ -68,9 +68,11 @@ class RuntimePathTests(unittest.TestCase):
     def test_docs_track_version_and_lossless_update(self) -> None:
         readme = read_text(README)
         changelog = read_text(CHANGELOG)
+        update = read_text(UPDATE)
         self.assertIn('Jarvis Memory v2.0.23', readme)
         self.assertIn('2.0.23', changelog)
         self.assertIn('bootstrap/update.sh', readme)
+        self.assertIn('configure_openclaw_qmd', update)
         self.assertIn('Persistent memory for OpenClaw.', readme)
         self.assertIn('一行代码无损更新', readme)
         self.assertIn('一行代码全新安装', readme)

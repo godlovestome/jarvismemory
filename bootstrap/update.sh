@@ -111,6 +111,9 @@ configure_service_session_access
 log "Regenerating cron block"
 configure_cron
 
+log "Refreshing OpenClaw QMD config"
+configure_openclaw_qmd
+
 log "Refreshing OpenClaw True Recall plugin install"
 install_openclaw_true_recall_plugins
 
