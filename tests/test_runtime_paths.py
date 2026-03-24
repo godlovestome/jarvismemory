@@ -112,6 +112,8 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('QMD bootstrap', text)
         self.assertIn('configure_openclaw_qmd()', text)
         self.assertIn('memory = cfg.setdefault("memory", {})', text)
+        self.assertIn('cfg.pop("runtime", None)', text)
+        self.assertNotIn('cfg.setdefault("runtime", {})["home"] = runtime_home', text)
         self.assertIn('memory["backend"] = "qmd"', text)
         self.assertIn('memory["citations"] = "auto"', text)
         self.assertIn('limits = qmd.setdefault("limits", {})', text)

@@ -332,6 +332,7 @@ if path.exists():
     except (OSError, json.JSONDecodeError):
         cfg = {}
 
+cfg.pop("runtime", None)
 memory = cfg.setdefault("memory", {})
 memory["backend"] = "qmd"
 memory["citations"] = "auto"
@@ -361,7 +362,6 @@ for item in default_paths:
 agents = cfg.setdefault("agents", {}).setdefault("defaults", {})
 agents["workspace"] = workspace_path
 
-cfg.setdefault("runtime", {})["home"] = runtime_home
 path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 
@@ -449,6 +449,7 @@ if path.exists():
     except (OSError, json.JSONDecodeError):
         cfg = {}
 
+cfg.pop("runtime", None)
 agents = cfg.setdefault("agents", {}).setdefault("defaults", {})
 agents["workspace"] = workspace_path
 
