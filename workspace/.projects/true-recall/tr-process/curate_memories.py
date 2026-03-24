@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import re
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -290,6 +291,18 @@ def normalize_gem_payload(
     return normalized
 
 
+def build_qdrant_point_id(gem: Dict[str, Any], user_id: str) -> str:
+    seed = "|".join(
+        [
+            str(user_id),
+            str(gem.get("conversation_id", "")),
+            str(gem.get("turn_range", "")),
+            str(gem.get("gem", "")),
+        ]
+    )
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, seed))
+
+
 def extract_gems_with_curator(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not turns:
         return []
@@ -361,11 +374,7 @@ def store_gem_to_qdrant(gem: Dict[str, Any], user_id: str) -> bool:
     ).strip()
     vector = get_embedding(embedding_text)
 
-    gem_id = re.sub(
-        r"[^a-zA-Z0-9_-]",
-        "-",
-        f"{user_id}-{gem.get('conversation_id', 'unknown')}-{gem.get('turn_range', '0-0')}",
-    )[:128]
+    gem_id = build_qdrant_point_id(gem, user_id)
 
     response = requests.put(
         f"{QDRANT_URL.rstrip('/')}/collections/{QDRANT_COLLECTION}/points?wait=true",

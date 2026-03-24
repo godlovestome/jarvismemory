@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.22] - 2026-03-24
+
+### Added / Changed
+
+- True Recall gem writes now use stable UUIDv5 point IDs instead of custom string IDs.
+- This fixes Qdrant `400 Bad Request` failures that reported the previous point ID format as invalid.
+
+### 新增 / 调整
+
+- True Recall gems 写入现在改用稳定的 UUIDv5 point ID，不再使用自定义字符串 ID。
+- 这修复了 Qdrant 因 point ID 格式非法而返回的 `400 Bad Request`。
+
 ## [2.0.21] - 2026-03-24
 
 ### Added / Changed

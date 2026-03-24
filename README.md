@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.21
+# Jarvis Memory v2.0.22
 
 Persistent memory for OpenClaw.
 面向 OpenClaw 的持久记忆层。
@@ -21,7 +21,7 @@ Jarvis Memory + True Recall 为 OpenClaw 提供在 CodeShield 框架内运行的
 
 ## Version Focus / 本版重点
 
-`v2.0.21` hardens service-runtime access and plugin trust:
+`v2.0.22` fixes the final Qdrant point-id write failure:
 
 - Redis message items are now normalized into real conversation turns before curation.
 - The curator prompt now matches the current True Recall turn schema.
@@ -33,8 +33,9 @@ Jarvis Memory + True Recall 为 OpenClaw 提供在 CodeShield 框架内运行的
 - Service session ACL repair is now recursive for existing and future transcript files.
 - Installed OpenClaw plugin directories are now root-owned so OpenClaw no longer flags them as suspicious local ownership.
 - Audit checks now use the CodeShield-managed Qdrant API key when available.
+- True Recall gems now use stable UUIDv5 point IDs, which satisfies Qdrant's point-id format requirements.
 
-`v2.0.21` 进一步加固了 service-runtime 访问和插件信任链：
+`v2.0.22` 修复了最后一个 Qdrant point-id 写入失败问题：
 
 - Redis 原始消息会先标准化成真正的 turn，再交给 curator。
 - curator 提示词已对齐当前 True Recall 的 turn 结构。
@@ -46,6 +47,7 @@ Jarvis Memory + True Recall 为 OpenClaw 提供在 CodeShield 框架内运行的
 - 现在会递归修复 service session 的 ACL，覆盖已有 transcript 文件和后续新文件。
 - 已安装的 OpenClaw 插件目录现在改为 root-owned，避免再被 OpenClaw 判定为可疑本地 ownership。
 - audit 在可用时会携带 CodeShield 托管的 Qdrant API key。
+- True Recall gems 现在使用稳定的 UUIDv5 作为 point ID，满足 Qdrant 对 point-id 格式的要求。
 
 ## CodeShield Safety / CodeShield 安全边界
 

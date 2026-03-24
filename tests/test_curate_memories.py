@@ -162,6 +162,24 @@ class CurateMemoriesTests(unittest.TestCase):
 
         self.assertIsNone(gem)
 
+    def test_build_qdrant_point_id_returns_stable_uuid(self) -> None:
+        module = load_module()
+
+        gem = {
+            "gem": "User decided to keep True Recall inside CodeShield.",
+            "conversation_id": "telegram-session",
+            "turn_range": "1-2",
+        }
+
+        point_id_a = module.build_qdrant_point_id(gem, "tars")
+        point_id_b = module.build_qdrant_point_id(gem, "tars")
+
+        self.assertEqual(point_id_a, point_id_b)
+        self.assertRegex(
+            point_id_a,
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
