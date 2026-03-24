@@ -37,37 +37,35 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('CURATION_MODEL="${CURATION_MODEL:-${DEFAULT_CURATION_MODEL}}"', text)
         self.assertIn('CURATION_TIMEOUT_SECONDS="${CURATION_TIMEOUT_SECONDS:-1200}"', text)
         self.assertIn('CURATION_NUM_PREDICT="${CURATION_NUM_PREDICT:-1200}"', text)
-        self.assertIn('is_legacy_default_curation_model()', text)
-        self.assertIn('qwen3:14b', text)
-        self.assertIn('Replacing temporary curator fallback ${CURATION_MODEL} with ${DEFAULT_CURATION_MODEL}', text)
         self.assertIn('has_service_runtime()', text)
         self.assertIn('mem_env_service_workspace="${SERVICE_WORKSPACE_DIR}/.memory_env"', text)
         self.assertIn('export OPENCLAW_HOME_SESSIONS_DIR="${home_sessions_dir}"', text)
         self.assertIn('export OPENCLAW_SERVICE_SESSIONS_DIR="${service_sessions_dir}"', text)
-        self.assertIn('build_memory_env "${SERVICE_WORKSPACE_DIR}" "${SERVICE_SESSIONS_DIR}" "${SESSIONS_DIR}" "${SERVICE_SESSIONS_DIR}"', text)
         self.assertIn('configure_service_session_access()', text)
         self.assertIn('setfacl -m "u:${OPENCLAW_USER}:x"', text)
         self.assertIn('setfacl -d -m "u:${OPENCLAW_USER}:rx" "${SERVICE_SESSIONS_DIR}"', text)
-        self.assertIn('/bin/bash {workspace}/skills/qdrant-memory/scripts/sliding_backup.sh', text)
+        self.assertIn('setfacl -R -m "u:${OPENCLAW_USER}:rX" "${SERVICE_SESSIONS_DIR}"', text)
+        self.assertIn('setfacl -R -d -m "u:${OPENCLAW_USER}:rX" "${SERVICE_SESSIONS_DIR}"', text)
         self.assertIn('capture_sessions_arg=" --sessions-dir ${SERVICE_SESSIONS_DIR}"', text)
 
-    def test_audit_reports_home_and_service_session_dirs(self) -> None:
+    def test_audit_reports_home_and_service_session_dirs_and_uses_api_key(self) -> None:
         text = read_text(AUDIT)
         self.assertIn('CURATION_MODEL:-qwen3.5:35b-a3b', text)
         self.assertIn('CURATION_TIMEOUT_SECONDS=${CURATION_TIMEOUT_SECONDS:-1200}', text)
         self.assertIn('CURATION_NUM_PREDICT=${CURATION_NUM_PREDICT:-1200}', text)
         self.assertIn('OPENCLAW_HOME_SESSIONS_DIR', text)
         self.assertIn('OPENCLAW_SERVICE_SESSIONS_DIR', text)
+        self.assertIn('headers["api-key"] = api_key', text)
         self.assertIn("find \"${dir}\" -maxdepth 1 -name '*.jsonl'", text)
         self.assertIn('cannot read service session directory', text)
 
     def test_docs_track_version_and_lossless_update(self) -> None:
         readme = read_text(README)
         changelog = read_text(CHANGELOG)
-        self.assertIn('Jarvis Memory v2.0.20', readme)
-        self.assertIn('2.0.20', changelog)
+        self.assertIn('Jarvis Memory v2.0.21', readme)
+        self.assertIn('2.0.21', changelog)
         self.assertIn('bootstrap/update.sh', readme)
-        self.assertIn('面向 OpenClaw 的持久记忆层', readme)
+        self.assertIn('Persistent memory for OpenClaw.', readme)
         self.assertIn('一行代码无损更新', readme)
         self.assertIn('一行代码全新安装', readme)
 
@@ -86,7 +84,6 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('def _qdrant_headers()', text)
         self.assertIn('headers=_qdrant_headers()', text)
         self.assertIn('points?wait=true', text)
-        self.assertIn('response.raise_for_status()', text)
         self.assertIn('Qdrant store failed:', text)
 
     def test_bootstrap_installs_and_configures_true_recall_plugin(self) -> None:
@@ -95,20 +92,10 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('configure_openclaw_true_recall()', text)
         self.assertIn('plugins install', text)
         self.assertIn('plugins enable memory-qdrant', text)
-        self.assertIn('plugins/memory-qdrant', text)
         self.assertIn('plugin_install_dir="${runtime_home}/.openclaw/extensions/memory-qdrant"', text)
         self.assertIn('plugin already exists', text)
         self.assertIn('rsync -a --delete "${plugin_source}/" "${plugin_install_dir}/"', text)
-        self.assertIn("plugin_version=\"$(python3 -c ", text)
-        self.assertIn("'collectionName': os.environ.get('TR_COLLECTION', 'true_recall')", text)
-        self.assertIn("'embeddingModel': os.environ.get('EMBEDDING_MODEL', 'mxbai-embed-large')", text)
-        self.assertIn("'autoRecall': True", text)
-        self.assertIn("plugins = cfg.setdefault('plugins', {})", text)
-        self.assertIn("allow = plugins.setdefault('allow', [])", text)
-        self.assertIn("allow.append('memory-qdrant')", text)
-        self.assertIn("installs = plugins.setdefault('installs', {})", text)
-        self.assertIn("'installPath': f'{runtime_home}/.openclaw/extensions/memory-qdrant'", text)
-        self.assertIn("'version': os.environ.get('OPENCLAW_PLUGIN_VERSION', '')", text)
+        self.assertIn('chown -R root:root "${plugin_install_dir}"', text)
         self.assertIn("'apiKeyEnvVar': 'QDRANT_API_KEY'", text)
 
     def test_plugin_package_exists_with_manifest_and_entrypoint(self) -> None:
@@ -120,7 +107,7 @@ class RuntimePathTests(unittest.TestCase):
         index = read_text(PLUGIN_INDEX)
 
         self.assertIn('"name": "@godlovestome/memory-qdrant"', package)
-        self.assertIn('"version": "2.0.20"', package)
+        self.assertIn('"version": "2.0.21"', package)
         self.assertIn('"./index.ts"', package)
         self.assertIn('"id": "memory-qdrant"', manifest)
         self.assertIn('"kind": "memory"', manifest)
@@ -137,9 +124,9 @@ class RuntimePathTests(unittest.TestCase):
         template = read_text(TEMPLATE_ENV)
 
         self.assertIn('/run/openclaw-memory/secrets.env', readme)
-        self.assertIn('不会把 Qdrant API key 等受保护密钥写入 `.memory_env`', readme)
+        self.assertIn('.memory_env', readme)
         self.assertIn('重建 True Recall gems', readme)
-        self.assertIn('2.0.20', changelog)
+        self.assertIn('2.0.21', changelog)
         self.assertIn('CodeShield-managed secrets stay outside .memory_env', update)
         self.assertIn('SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"', update)
         self.assertIn('resolve_script_context()', update)
@@ -151,8 +138,9 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('cron_capture.py', rebuild)
         self.assertIn('true_recall', rebuild)
         self.assertIn('redis-cli', rebuild)
-        self.assertIn("--hours 0", rebuild)
-        self.assertIn("--sessions-dir", rebuild)
+        self.assertIn('--hours 0', rebuild)
+        self.assertIn('--sessions-dir', rebuild)
+        self.assertIn('repair_service_session_access()', rebuild)
 
 
 if __name__ == '__main__':

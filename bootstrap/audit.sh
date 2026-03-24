@@ -50,9 +50,14 @@ import os
 import urllib.request
 
 base = os.getenv("QDRANT_URL", "http://127.0.0.1:6333")
+headers = {}
+api_key = os.getenv("QDRANT_API_KEY", "")
+if api_key:
+    headers["api-key"] = api_key
 for name in [os.getenv("QDRANT_COLLECTION", "kimi_memories"), os.getenv("TR_COLLECTION", "true_recall")]:
     try:
-        with urllib.request.urlopen(f"{base}/collections/{name}", timeout=10) as resp:
+        req = urllib.request.Request(f"{base}/collections/{name}", headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.load(resp)
         result = data["result"]
         print(f"OK   {name}: points={result.get('points_count', 0)}")

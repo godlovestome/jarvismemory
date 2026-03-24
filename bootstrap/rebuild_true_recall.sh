@@ -22,6 +22,34 @@ require_root() {
   [[ "$(id -u)" -eq 0 ]] || die "Please run this script as root or with sudo"
 }
 
+repair_service_session_access() {
+  if [[ ! -d "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions" ]]; then
+    return 0
+  fi
+
+  if ! command -v setfacl >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local traverse_paths=(
+    "${SERVICE_OPENCLAW_HOME}"
+    "${SERVICE_OPENCLAW_HOME}/.openclaw"
+    "${SERVICE_OPENCLAW_HOME}/.openclaw/agents"
+    "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main"
+    "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions"
+  )
+
+  local path
+  for path in "${traverse_paths[@]}"; do
+    [[ -d "${path}" ]] || continue
+    setfacl -m "u:${OPENCLAW_USER}:x" "${path}" || true
+  done
+
+  setfacl -m "u:${OPENCLAW_USER}:rx" "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions" || true
+  setfacl -d -m "u:${OPENCLAW_USER}:rX" "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions" || true
+  setfacl -R -m "u:${OPENCLAW_USER}:rX" "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions" || true
+}
+
 run_as_openclaw() {
   local command_text="$1"
   su -s /bin/bash "${OPENCLAW_USER}" -c "source '${ENV_FILE}' && ${command_text}"
@@ -60,6 +88,9 @@ redis-cli -h "${REDIS_HOST:-127.0.0.1}" -p "${REDIS_PORT:-6379}" DEL "mem:${USER
 log "Removing capture state files"
 rm -f "${STATE_FILE}"
 rm -f "${SERVICE_STATE_FILE}"
+
+log "Repairing service session ACLs"
+repair_service_session_access
 
 log "Recreating true_recall collection"
 "${PYTHON_BIN}" - <<'PY'

@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.20
+# Jarvis Memory v2.0.21
 
 Persistent memory for OpenClaw.
 面向 OpenClaw 的持久记忆层。
@@ -21,7 +21,7 @@ Jarvis Memory + True Recall 为 OpenClaw 提供在 CodeShield 框架内运行的
 
 ## Version Focus / 本版重点
 
-`v2.0.20` makes service-runtime capture explicit:
+`v2.0.21` hardens service-runtime access and plugin trust:
 
 - Redis message items are now normalized into real conversation turns before curation.
 - The curator prompt now matches the current True Recall turn schema.
@@ -30,8 +30,11 @@ Jarvis Memory + True Recall 为 OpenClaw 提供在 CodeShield 框架内运行的
 - Invalid gems are skipped safely instead of crashing the whole run.
 - Transcript capture and cron rebuild now explicitly pass `--sessions-dir /var/lib/openclaw-svc/...` when the CodeShield service runtime exists.
 - `bootstrap/rebuild_true_recall.sh` now forces curator execution with `--hours 0`, so rebuild mode no longer drops staged turns because of the default 24-hour filter.
+- Service session ACL repair is now recursive for existing and future transcript files.
+- Installed OpenClaw plugin directories are now root-owned so OpenClaw no longer flags them as suspicious local ownership.
+- Audit checks now use the CodeShield-managed Qdrant API key when available.
 
-`v2.0.20` 把 service-runtime 抓取改成显式指定：
+`v2.0.21` 进一步加固了 service-runtime 访问和插件信任链：
 
 - Redis 原始消息会先标准化成真正的 turn，再交给 curator。
 - curator 提示词已对齐当前 True Recall 的 turn 结构。
@@ -40,6 +43,9 @@ Jarvis Memory + True Recall 为 OpenClaw 提供在 CodeShield 框架内运行的
 - 非法 gem 会被安全跳过，不会让整次任务崩掉。
 - 在检测到 CodeShield service runtime 存在时，transcript 抓取和 cron 重建都会显式传入 `--sessions-dir /var/lib/openclaw-svc/...`。
 - `bootstrap/rebuild_true_recall.sh` 现在会强制用 `--hours 0` 运行 curator，重建模式不再被默认 24 小时过滤误伤。
+- 现在会递归修复 service session 的 ACL，覆盖已有 transcript 文件和后续新文件。
+- 已安装的 OpenClaw 插件目录现在改为 root-owned，避免再被 OpenClaw 判定为可疑本地 ownership。
+- audit 在可用时会携带 CodeShield 托管的 Qdrant API key。
 
 ## CodeShield Safety / CodeShield 安全边界
 

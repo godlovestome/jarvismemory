@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.21] - 2026-03-24
+
+### Added / Changed
+
+- Service session ACL repair is now recursive, covering both existing transcript files and future files created under the CodeShield service runtime.
+- Rebuild now self-heals those ACLs before capture so root-triggered rebuild runs do not silently lose access.
+- Installed OpenClaw plugin directories are now root-owned and world-readable, matching OpenClaw's trust expectations and avoiding suspicious-ownership plugin blocks.
+- Audit collection checks now send the CodeShield-managed Qdrant API key when available, so local audits no longer misreport authorized collections as missing.
+
+### 新增 / 调整
+
+- service session ACL 修复现在改为递归方式，覆盖现有 transcript 文件以及后续在 CodeShield service runtime 下创建的新文件。
+- 重建脚本在抓取前会先自愈这些 ACL，避免 root 触发的重建任务再次悄悄失去访问权限。
+- 已安装的 OpenClaw 插件目录现在改为 root-owned 且全局可读，符合 OpenClaw 的信任预期，不再被当成可疑 ownership 插件阻断。
+- audit 在可用时会携带 CodeShield 托管的 Qdrant API key，本地审计不再把本来可访问的 collection 误报为 missing。
+
 ## [2.0.20] - 2026-03-24
 
 ### Added / Changed

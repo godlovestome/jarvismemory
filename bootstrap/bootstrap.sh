@@ -324,7 +324,8 @@ install_openclaw_true_recall_plugin() {
 
   if [[ -d "${plugin_install_dir}" ]]; then
     rsync -a --delete "${plugin_source}/" "${plugin_install_dir}/"
-    chown -R "${runtime_user}:${runtime_user}" "${plugin_install_dir}"
+    chown -R root:root "${plugin_install_dir}"
+    chmod -R a+rX "${plugin_install_dir}"
   fi
 
   run_openclaw_cli_for_runtime "${runtime_user}" "${runtime_home}" "${runtime_workspace}" "plugins enable memory-qdrant" >/dev/null 2>&1 || true
@@ -515,7 +516,8 @@ configure_service_session_access() {
   if [[ -d "${SERVICE_SESSIONS_DIR}" ]]; then
     setfacl -m "u:${OPENCLAW_USER}:rx" "${SERVICE_SESSIONS_DIR}"
     setfacl -d -m "u:${OPENCLAW_USER}:rx" "${SERVICE_SESSIONS_DIR}"
-    find "${SERVICE_SESSIONS_DIR}" -maxdepth 1 -type f \( -name '*.jsonl' -o -name 'sessions.json' \) -exec setfacl -m "u:${OPENCLAW_USER}:r" {} +
+    setfacl -R -m "u:${OPENCLAW_USER}:rX" "${SERVICE_SESSIONS_DIR}"
+    setfacl -R -d -m "u:${OPENCLAW_USER}:rX" "${SERVICE_SESSIONS_DIR}"
   fi
 }
 
