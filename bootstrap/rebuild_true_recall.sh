@@ -27,6 +27,15 @@ run_as_openclaw() {
   su -s /bin/bash "${OPENCLAW_USER}" -c "source '${ENV_FILE}' && ${command_text}"
 }
 
+capture_command() {
+  local base_cmd="'${PYTHON_BIN}' '${CAPTURE_SCRIPT}' --user-id '${USER_ID}'"
+  if [[ -d "${SERVICE_OPENCLAW_HOME}/.openclaw" && -d "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions" ]]; then
+    printf "%s --sessions-dir '%s'" "${base_cmd}" "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions"
+    return 0
+  fi
+  printf "%s" "${base_cmd}"
+}
+
 require_root
 [[ -f "${ENV_FILE}" ]] || die "Missing ${ENV_FILE}. Run bootstrap/bootstrap.sh first."
 
@@ -93,7 +102,7 @@ with urllib.request.urlopen(create_req, timeout=30) as resp:
 PY
 
 log "Re-running transcript capture"
-run_as_openclaw "'${PYTHON_BIN}' '${CAPTURE_SCRIPT}' --user-id '${USER_ID}'"
+run_as_openclaw "$(capture_command)"
 
 log "Re-running gem curation"
 run_as_openclaw "'${PYTHON_BIN}' '${CURATOR_SCRIPT}' --user-id '${USER_ID}' --hours 0"

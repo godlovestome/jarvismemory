@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.20] - 2026-03-24
+
+### Added / Changed
+
+- Cron capture and rebuild now pass the CodeShield service session directory explicitly when it exists.
+- This avoids silent fallback to `/home/openclaw/.openclaw/agents/main/sessions` when environment ordering or stale runtime values still point at the old home transcript tree.
+
+### 新增 / 调整
+
+- cron 抓取与重建流程现在会在 service runtime 存在时显式传入 CodeShield 的 service session 目录。
+- 这样可以避免在环境变量顺序或旧运行时值仍指向 home transcript 树时，又悄悄退回 `/home/openclaw/.openclaw/agents/main/sessions`。
+
 ## [2.0.19] - 2026-03-23
 
 ### Added / Changed

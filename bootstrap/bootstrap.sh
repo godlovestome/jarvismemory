@@ -521,10 +521,14 @@ configure_service_session_access() {
 
 configure_cron() {
   local tmpfile
+  local capture_sessions_arg=""
+  if has_service_runtime; then
+    capture_sessions_arg=" --sessions-dir ${SERVICE_SESSIONS_DIR}"
+  fi
   tmpfile="$(mktemp)"
   crontab -l -u "${OPENCLAW_USER}" > "${tmpfile}" 2>/dev/null || true
 
-  python3 - "${tmpfile}" "${OPENCLAW_HOME}" "${WORKSPACE_DIR}" "${PYTHON_BIN}" "${CRON_CAPTURE_SCHEDULE}" "${TR_SCHEDULE}" "${BACKUP_SCHEDULE}" "${SLIDING_SCHEDULE}" <<'PY'
+  python3 - "${tmpfile}" "${OPENCLAW_HOME}" "${WORKSPACE_DIR}" "${PYTHON_BIN}" "${CRON_CAPTURE_SCHEDULE}" "${TR_SCHEDULE}" "${BACKUP_SCHEDULE}" "${SLIDING_SCHEDULE}" "${capture_sessions_arg}" <<'PY'
 import pathlib
 import sys
 
@@ -536,6 +540,7 @@ capture = sys.argv[5]
 curate = sys.argv[6]
 backup = sys.argv[7]
 sliding = sys.argv[8]
+capture_sessions_arg = sys.argv[9]
 start = "# >>> jarvismemory managed block >>>"
 end = "# <<< jarvismemory managed block <<<"
 
@@ -561,7 +566,7 @@ for line in lines:
 block = [
     start,
     "SHELL=/bin/bash",
-    f"{capture} source {home}/.memory_env && cd {workspace} && {python_bin} {workspace}/skills/mem-redis/scripts/cron_capture.py --user-id $USER_ID >> /var/log/memory-capture.log 2>&1",
+    f"{capture} source {home}/.memory_env && cd {workspace} && {python_bin} {workspace}/skills/mem-redis/scripts/cron_capture.py --user-id $USER_ID{capture_sessions_arg} >> /var/log/memory-capture.log 2>&1",
     f"{curate} source {home}/.memory_env && cd {workspace}/.projects/true-recall && {python_bin} {workspace}/.projects/true-recall/tr-process/curate_memories.py --user-id $USER_ID >> /var/log/true-recall-curator.log 2>&1",
     f"{backup} source {home}/.memory_env && cd {workspace} && {python_bin} {workspace}/skills/mem-redis/scripts/cron_backup.py --user-id $USER_ID >> /var/log/memory-backup.log 2>&1",
     f"{sliding} source {home}/.memory_env && /bin/bash {workspace}/skills/qdrant-memory/scripts/sliding_backup.sh >> /var/log/memory-backup.log 2>&1",
