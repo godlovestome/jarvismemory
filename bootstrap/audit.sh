@@ -69,10 +69,12 @@ for runtime, path in runtimes:
 
     memory = cfg.get("memory", {})
     qmd = memory.get("qmd", {})
+    update = qmd.get("update", {})
     limits = qmd.get("limits", {})
     print(
         f"OK   {runtime} memory.backend={memory.get('backend', '<missing>')} "
         f"citations={memory.get('citations', '<missing>')} timeoutMs={limits.get('timeoutMs', '<missing>')} "
+        f"embedTimeoutMs={update.get('embedTimeoutMs', '<missing>')} "
         f"paths={len(qmd.get('paths', []))}"
     )
 PY

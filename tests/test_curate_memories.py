@@ -162,6 +162,54 @@ class CurateMemoriesTests(unittest.TestCase):
 
         self.assertIsNone(gem)
 
+    def test_normalize_gem_payload_accepts_relaxed_curator_shape(self) -> None:
+        module = load_module()
+
+        turns = [
+            {
+                "turn": 3,
+                "user_message": "Keep True Recall for chat memory and QMD for SOP retrieval.",
+                "ai_response": "We should keep them independent and inject True Recall first.",
+                "timestamp": "2026-03-24T02:00:00+00:00",
+                "date": "2026-03-24",
+                "conversation_id": "telegram-session",
+                "user_id": "tars",
+            },
+            {
+                "turn": 4,
+                "user_message": "If one side misses, just answer normally.",
+                "ai_response": "Understood. Both chains will degrade silently.",
+                "timestamp": "2026-03-24T02:02:00+00:00",
+                "date": "2026-03-24",
+                "conversation_id": "telegram-session",
+                "user_id": "tars",
+            },
+        ]
+
+        gem = module.normalize_gem_payload(
+            {
+                "memory": "True Recall stays dedicated to chat memory while QMD handles SOP and policy retrieval.",
+                "why": "This keeps both retrieval chains independent and parallel.",
+                "tags": "memory, qmd, architecture",
+                "importance": "critical",
+                "source_turns": "3-4",
+            },
+            turns,
+            "tars",
+        )
+
+        self.assertIsNotNone(gem)
+        self.assertEqual(
+            gem["gem"],
+            "True Recall stays dedicated to chat memory while QMD handles SOP and policy retrieval.",
+        )
+        self.assertEqual(gem["source_turns"], [3, 4])
+        self.assertEqual(gem["turn_range"], "3-4")
+        self.assertEqual(gem["importance"], "high")
+        self.assertEqual(gem["categories"], ["memory", "qmd", "architecture"])
+        self.assertEqual(gem["context"], "This keeps both retrieval chains independent and parallel.")
+        self.assertIn("Keep True Recall for chat memory", gem["snippet"])
+
     def test_build_qdrant_point_id_returns_stable_uuid(self) -> None:
         module = load_module()
 

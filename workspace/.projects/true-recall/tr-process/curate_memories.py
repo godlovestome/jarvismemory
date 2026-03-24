@@ -195,6 +195,69 @@ def _join_snippet(turns: List[Dict[str, Any]]) -> str:
     return "\n".join(parts)
 
 
+def _first_nonempty_string(payload: Dict[str, Any], keys: List[str]) -> str:
+    for key in keys:
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _normalize_categories(raw_categories: Any) -> List[str]:
+    if isinstance(raw_categories, str):
+        values = re.split(r"[,|/\n]+", raw_categories)
+    elif isinstance(raw_categories, list):
+        values = [str(value) for value in raw_categories]
+    else:
+        values = []
+
+    normalized: List[str] = []
+    for value in values:
+        cleaned = str(value).strip()
+        if cleaned and cleaned not in normalized:
+            normalized.append(cleaned)
+    return normalized[:5]
+
+
+def _normalize_source_turns(raw_source_turns: Any) -> List[int]:
+    values: List[int] = []
+
+    if isinstance(raw_source_turns, int):
+        return [raw_source_turns]
+
+    if isinstance(raw_source_turns, str):
+        raw_source_turns = raw_source_turns.strip()
+        if not raw_source_turns:
+            return []
+        range_match = re.fullmatch(r"(\d+)\s*-\s*(\d+)", raw_source_turns)
+        if range_match:
+            start = int(range_match.group(1))
+            end = int(range_match.group(2))
+            if start <= end:
+                return list(range(start, end + 1))
+            return list(range(end, start + 1))
+        raw_source_turns = re.split(r"[,\s]+", raw_source_turns)
+
+    if not isinstance(raw_source_turns, list):
+        return []
+
+    for value in raw_source_turns:
+        if isinstance(value, int):
+            values.append(value)
+            continue
+        if isinstance(value, str) and value.isdigit():
+            values.append(int(value))
+            continue
+        if isinstance(value, dict):
+            turn_value = value.get("turn")
+            if isinstance(turn_value, int):
+                values.append(turn_value)
+            elif isinstance(turn_value, str) and turn_value.isdigit():
+                values.append(int(turn_value))
+
+    return sorted({value for value in values if value > 0})
+
+
 def normalize_gem_payload(
     gem: Dict[str, Any],
     turns: List[Dict[str, Any]],
@@ -203,7 +266,10 @@ def normalize_gem_payload(
     if not isinstance(gem, dict):
         return None
 
-    gem_text = str(gem.get("gem", "")).strip()
+    gem_text = _first_nonempty_string(
+        gem,
+        ["gem", "memory", "summary", "fact", "insight", "title"],
+    )
     if not gem_text:
         return None
 
@@ -217,14 +283,10 @@ def normalize_gem_payload(
         if str(turn.get("turn", "")).isdigit() or isinstance(turn.get("turn"), int)
     }
 
-    source_turns = gem.get("source_turns") or []
-    parsed_source_turns = sorted(
-        {
-            int(turn)
-            for turn in source_turns
-            if isinstance(turn, int) or (isinstance(turn, str) and turn.isdigit())
-        }
-    )
+    source_turns = gem.get("source_turns")
+    parsed_source_turns = _normalize_source_turns(source_turns)
+    if not parsed_source_turns:
+        parsed_source_turns = _normalize_source_turns(gem.get("turn_range"))
     if not parsed_source_turns and indexed_turns:
         parsed_source_turns = sorted(indexed_turns.keys())[:2]
 
@@ -235,18 +297,18 @@ def normalize_gem_payload(
 
     last_turn = selected_turns[-1]
     first_turn = selected_turns[0]
-    context = str(gem.get("context", "")).strip()
-    snippet = str(gem.get("snippet", "")).strip() or _join_snippet(selected_turns)
-    categories = [
-        str(value).strip()
-        for value in (gem.get("categories") or [])
-        if str(value).strip()
-    ]
+    context = _first_nonempty_string(gem, ["context", "why", "reason", "rationale"])
+    snippet = _first_nonempty_string(gem, ["snippet", "excerpt", "evidence"]) or _join_snippet(selected_turns)
+    categories = _normalize_categories(gem.get("categories") or gem.get("tags") or gem.get("labels"))
     if not categories:
         categories = ["technical"]
     categories = categories[:5]
 
     importance = str(gem.get("importance", "medium")).strip().lower()
+    if importance in {"critical", "urgent"}:
+        importance = "high"
+    elif importance == "low":
+        importance = "medium"
     if importance not in {"medium", "high"}:
         importance = "medium"
 
@@ -429,6 +491,9 @@ def main() -> None:
         normalized = normalize_gem_payload(gem, turns, args.user_id)
         if normalized is not None:
             gems.append(normalized)
+        else:
+            preview = json.dumps(gem, ensure_ascii=False)[:500]
+            print(f"Skipped invalid gem payload: {preview}")
 
     if not gems:
         print("No valid gems after normalization. Redis buffer preserved for Jarvis Memory.")
