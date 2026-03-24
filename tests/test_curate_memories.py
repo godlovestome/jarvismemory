@@ -210,6 +210,45 @@ class CurateMemoriesTests(unittest.TestCase):
         self.assertEqual(gem["context"], "This keeps both retrieval chains independent and parallel.")
         self.assertIn("Keep True Recall for chat memory", gem["snippet"])
 
+    def test_normalize_gem_payload_accepts_turn_echo_for_durable_instruction(self) -> None:
+        module = load_module()
+
+        turns = [
+            {
+                "turn": 1,
+                "user_message": (
+                    "Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. "
+                    "Do not infer or repeat old tasks from prior chats."
+                ),
+                "ai_response": "HEARTBEAT_OK",
+                "timestamp": "2026-03-13T11:12:55+00:00",
+                "date": "2026-03-13",
+                "conversation_id": "heartbeat-session",
+                "user_id": "tars",
+            }
+        ]
+
+        gem = module.normalize_gem_payload(
+            {
+                "user_id": "tars",
+                "user_message": turns[0]["user_message"],
+                "ai_response": "HEARTBEAT_OK",
+                "turn": 1,
+                "timestamp": "2026-03-13T11:12:55+00:00",
+                "date": "2026-03-13",
+                "conversation_id": "heartbeat-session",
+            },
+            turns,
+            "tars",
+        )
+
+        self.assertIsNotNone(gem)
+        self.assertIn("HEARTBEAT.md", gem["gem"])
+        self.assertEqual(gem["source_turns"], [1])
+        self.assertEqual(gem["turn_range"], "1-1")
+        self.assertIn("constraint", gem["categories"])
+        self.assertEqual(gem["importance"], "high")
+
     def test_build_qdrant_point_id_returns_stable_uuid(self) -> None:
         module = load_module()
 

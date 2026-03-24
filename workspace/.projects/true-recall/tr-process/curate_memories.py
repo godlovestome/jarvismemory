@@ -258,6 +258,54 @@ def _normalize_source_turns(raw_source_turns: Any) -> List[int]:
     return sorted({value for value in values if value > 0})
 
 
+def _derive_turn_echo_gem(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    user_message = str(payload.get("user_message", "")).strip()
+    ai_response = str(payload.get("ai_response", "")).strip()
+    conversation_id = str(payload.get("conversation_id") or "unknown-session").strip() or "unknown-session"
+    turn_value = payload.get("turn")
+    turn_number = 0
+    if isinstance(turn_value, int):
+        turn_number = turn_value
+    elif isinstance(turn_value, str) and turn_value.isdigit():
+        turn_number = int(turn_value)
+
+    if not user_message:
+        return None
+
+    lower_message = user_message.lower()
+    if "heartbeat.md" in lower_message and (
+        "follow it strictly" in lower_message
+        or "do not infer" in lower_message
+        or "do not repeat old tasks" in lower_message
+    ):
+        gem_text = (
+            "User instructed the assistant to read HEARTBEAT.md from the workspace and follow it strictly, "
+            "without inferring or repeating old tasks from prior chats."
+        )
+        return {
+            "gem": gem_text,
+            "context": "Defines a durable operating rule for future sessions.",
+            "snippet": _join_snippet(
+                [
+                    {
+                        "user_message": user_message,
+                        "ai_response": ai_response,
+                    }
+                ]
+            ),
+            "categories": ["operating-rule", "constraint", "file-path"],
+            "importance": "high",
+            "confidence": 0.9,
+            "timestamp": _iso_or_default(payload.get("timestamp")),
+            "date": str(payload.get("date") or _iso_or_default(payload.get("timestamp"))[:10]),
+            "conversation_id": conversation_id,
+            "turn_range": f"{turn_number}-{turn_number}" if turn_number else "0-0",
+            "source_turns": [turn_number] if turn_number else [],
+        }
+
+    return None
+
+
 def normalize_gem_payload(
     gem: Dict[str, Any],
     turns: List[Dict[str, Any]],
@@ -271,7 +319,12 @@ def normalize_gem_payload(
         ["gem", "memory", "summary", "fact", "insight", "title"],
     )
     if not gem_text:
-        return None
+        derived_gem = _derive_turn_echo_gem(gem)
+        if derived_gem is not None:
+            gem = {**derived_gem, **gem}
+            gem_text = str(derived_gem["gem"]).strip()
+        else:
+            return None
 
     normalized_turns = [turn for turn in turns if isinstance(turn, dict)]
     if not normalized_turns:
