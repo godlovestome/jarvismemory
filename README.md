@@ -1,4 +1,4 @@
-# Jarvis Memory v2.0.22
+# Jarvis Memory v2.0.23
 
 Persistent memory for OpenClaw.
 面向 OpenClaw 的持久记忆层。
@@ -20,6 +20,12 @@ Jarvis Memory + True Recall 为 OpenClaw 提供在 CodeShield 框架内运行的
 - `memory-qdrant` 插件会在回复前召回相关 gems。
 
 ## Version Focus / 本版重点
+
+`v2.0.23` adds a real one-time full-history rebuild path while keeping daily cron runs aligned to China early morning without changing the VDS timezone:
+
+- `bootstrap/rebuild_true_recall.sh` now passes `--all-transcripts`, so rebuild mode sweeps every readable historical session transcript instead of only the latest `.jsonl`.
+- Normal cron remains incremental, but the default schedule is now once per day at Los Angeles times that map to China early morning.
+- Default cron window is now `11:05 / 11:30 / 12:00 / 12:30` in `America/Los_Angeles`, which corresponds to `02:05 / 02:30 / 03:00 / 03:30` in China during March 2026 daylight-saving time.
 
 `v2.0.22` fixes the final Qdrant point-id write failure:
 
@@ -78,11 +84,19 @@ The lossless update path keeps existing OpenClaw settings, CodeShield-managed se
 
 ## Common Operations / 常用命令
 
-Rebuild True Recall gems from existing transcripts:
+Rebuild True Recall gems from all readable historical transcripts:
 从现有 transcript 强制重建 True Recall gems：
 
 ```bash
 sudo bash bootstrap/rebuild_true_recall.sh
+```
+
+Default daily cron window (server stays on Los Angeles time):
+```text
+11:05 America/Los_Angeles  -> 02:05 China capture
+11:30 America/Los_Angeles  -> 02:30 China True Recall curation (last 24h)
+12:00 America/Los_Angeles  -> 03:00 China backup
+12:30 America/Los_Angeles  -> 03:30 China sliding backup
 ```
 
 Run the curator manually:

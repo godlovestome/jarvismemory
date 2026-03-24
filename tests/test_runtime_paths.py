@@ -33,6 +33,11 @@ class RuntimePathTests(unittest.TestCase):
 
     def test_bootstrap_writes_service_memory_env_when_runtime_exists(self) -> None:
         text = read_text(BOOTSTRAP)
+        self.assertIn('TIMEZONE="${TIMEZONE:-America/Los_Angeles}"', text)
+        self.assertIn('CRON_CAPTURE_SCHEDULE="${CRON_CAPTURE_SCHEDULE:-5 11 * * *}"', text)
+        self.assertIn('TR_SCHEDULE="${TR_SCHEDULE:-30 11 * * *}"', text)
+        self.assertIn('BACKUP_SCHEDULE="${BACKUP_SCHEDULE:-0 12 * * *}"', text)
+        self.assertIn('SLIDING_SCHEDULE="${SLIDING_SCHEDULE:-30 12 * * *}"', text)
         self.assertIn('DEFAULT_CURATION_MODEL="${DEFAULT_CURATION_MODEL:-qwen3.5:35b-a3b}"', text)
         self.assertIn('CURATION_MODEL="${CURATION_MODEL:-${DEFAULT_CURATION_MODEL}}"', text)
         self.assertIn('CURATION_TIMEOUT_SECONDS="${CURATION_TIMEOUT_SECONDS:-1200}"', text)
@@ -62,8 +67,8 @@ class RuntimePathTests(unittest.TestCase):
     def test_docs_track_version_and_lossless_update(self) -> None:
         readme = read_text(README)
         changelog = read_text(CHANGELOG)
-        self.assertIn('Jarvis Memory v2.0.22', readme)
-        self.assertIn('2.0.22', changelog)
+        self.assertIn('Jarvis Memory v2.0.23', readme)
+        self.assertIn('2.0.23', changelog)
         self.assertIn('bootstrap/update.sh', readme)
         self.assertIn('Persistent memory for OpenClaw.', readme)
         self.assertIn('一行代码无损更新', readme)
@@ -107,7 +112,7 @@ class RuntimePathTests(unittest.TestCase):
         index = read_text(PLUGIN_INDEX)
 
         self.assertIn('"name": "@godlovestome/memory-qdrant"', package)
-        self.assertIn('"version": "2.0.22"', package)
+        self.assertIn('"version": "2.0.23"', package)
         self.assertIn('"./index.ts"', package)
         self.assertIn('"id": "memory-qdrant"', manifest)
         self.assertIn('"kind": "memory"', manifest)
@@ -126,7 +131,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('/run/openclaw-memory/secrets.env', readme)
         self.assertIn('.memory_env', readme)
         self.assertIn('重建 True Recall gems', readme)
-        self.assertIn('2.0.22', changelog)
+        self.assertIn('2.0.23', changelog)
         self.assertIn('CodeShield-managed secrets stay outside .memory_env', update)
         self.assertIn('SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"', update)
         self.assertIn('resolve_script_context()', update)
@@ -140,6 +145,7 @@ class RuntimePathTests(unittest.TestCase):
         self.assertIn('redis-cli', rebuild)
         self.assertIn('--hours 0', rebuild)
         self.assertIn('--sessions-dir', rebuild)
+        self.assertIn('--all-transcripts', rebuild)
         self.assertIn('repair_service_session_access()', rebuild)
 
 

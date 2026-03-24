@@ -35,7 +35,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from session_runtime import discover_session_dirs, find_latest_transcript
+from session_runtime import discover_session_dirs, find_all_transcripts, find_latest_transcript
 
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -182,6 +182,7 @@ def main() -> None:
     parser.add_argument("--user-id", default=USER_ID)
     parser.add_argument("--include-thinking", action="store_true", help="Store thinking into mem_thinking:<user>")
     parser.add_argument("--sessions-dir", default=None)
+    parser.add_argument("--all-transcripts", action="store_true", help="Capture every readable transcript instead of only the latest one")
     parser.add_argument("--dry-run", action="store_true", help="Parse + update state, but do not write to Redis")
     args = parser.parse_args()
 
@@ -189,42 +190,60 @@ def main() -> None:
     if not session_dirs and args.sessions_dir is None:
         session_dirs = [DEFAULT_SESSIONS_DIR] if DEFAULT_SESSIONS_DIR.is_dir() else []
 
-    transcript = find_latest_transcript(session_dirs)
-    if not transcript:
+    transcripts = find_all_transcripts(session_dirs) if args.all_transcripts else []
+    if not transcripts:
+        transcript = find_latest_transcript(session_dirs)
+        if transcript is not None:
+            transcripts = [transcript]
+
+    if not transcripts:
         print("[cron_capture] No session transcripts found")
         return
 
     st = load_state()
-    key = str(transcript)
-    info = st.get(key, {})
-    last_offset = int(info.get("offset", 0))
-    last_size = int(info.get("size", 0))
+    total_count = 0
+    touched_parents = set()
 
-    cur_size = transcript.stat().st_size
-    if cur_size == last_size and last_offset > 0:
-        print("[cron_capture] No changes")
-        return
+    for transcript in transcripts:
+        key = str(transcript)
+        info = st.get(key, {})
+        last_offset = int(info.get("offset", 0))
+        last_size = int(info.get("size", 0))
 
-    messages, end_offset = parse_new_messages(transcript, last_offset, include_thinking=args.include_thinking)
-    if not messages:
-        # Still update size/offset so we don't re-read noise lines.
+        cur_size = transcript.stat().st_size
+        if cur_size == last_size and last_offset > 0:
+            continue
+
+        messages, end_offset = parse_new_messages(transcript, last_offset, include_thinking=args.include_thinking)
         st[key] = {"offset": end_offset, "size": cur_size, "updated_at": _now_iso()}
-        save_state(st)
-        print("[cron_capture] No new user/assistant messages")
+        if not messages:
+            continue
+
+        touched_parents.add(str(transcript.parent))
+        if args.dry_run:
+            total_count += len(messages)
+            continue
+
+        total_count += append_to_redis(args.user_id, messages)
+
+    save_state(st)
+
+    if total_count == 0:
+        if args.dry_run:
+            print("[cron_capture] DRY RUN: no new user/assistant messages")
+        else:
+            print("[cron_capture] No changes")
         return
 
     if args.dry_run:
-        st[key] = {"offset": end_offset, "size": cur_size, "updated_at": _now_iso()}
-        save_state(st)
-        print(f"[cron_capture] DRY RUN: would append {len(messages)} messages to Redis mem:{args.user_id}")
+        print(f"[cron_capture] DRY RUN: would append {total_count} messages to Redis mem:{args.user_id}")
         return
 
-    count = append_to_redis(args.user_id, messages)
-
-    st[key] = {"offset": end_offset, "size": cur_size, "updated_at": _now_iso()}
-    save_state(st)
-
-    print(f"[cron_capture] Appended {count} messages to Redis mem:{args.user_id} from {transcript.parent}")
+    if len(touched_parents) == 1:
+        source = next(iter(touched_parents))
+    else:
+        source = f"{len(touched_parents)} transcript directories"
+    print(f"[cron_capture] Appended {total_count} messages to Redis mem:{args.user_id} from {source}")
 
 
 if __name__ == "__main__":

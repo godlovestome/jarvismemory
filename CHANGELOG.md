@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.23] - 2026-03-24
+
+### Added / Changed
+
+- `bootstrap/rebuild_true_recall.sh` now performs a one-time full-history capture by passing `--all-transcripts` to `cron_capture.py`.
+- `cron_capture.py` can now iterate across every readable transcript file while preserving the existing single-transcript incremental behavior for normal cron runs.
+- The VDS timezone remains `America/Los_Angeles`, but the default daily cron window is now pinned to Los Angeles times that correspond to China early morning: `11:05` capture, `11:30` curation, `12:00` backup, `12:30` sliding backup.
+
+### 鏂板 / 璋冩暣
+
+- `bootstrap/rebuild_true_recall.sh` 鐜板湪浼氶€氳繃 `--all-transcripts` 鎵ц涓€娆″叏閲忓巻鍙?transcript 鎶撳彇锛岀敤浜庨噸寤?True Recall銆?
+- `cron_capture.py` 鐜板湪鍙互閬嶅巻鍏ㄩ儴鍙 transcript 鏂囦欢锛屽悓鏃朵繚鎸佹棩甯?cron 浠嶇劧鏄閲忓崟 transcript 妯″紡銆?
+- VDS 鏃跺尯淇濇寔涓?`America/Los_Angeles`锛屼絾榛樿姣忔棩 cron 鏃堕棿鏀逛负瀵瑰簲涓浗鍑屾櫒鐨?LA 鏃堕棿锛?`11:05` capture锛?`11:30` curation锛?`12:00` backup锛?`12:30` sliding backup銆?
+
 ## [2.0.22] - 2026-03-24
 
 ### Added / Changed

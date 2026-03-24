@@ -73,3 +73,21 @@ def find_latest_transcript(session_dirs: Sequence[Path]) -> Optional[Path]:
         if readable:
             return max(readable, key=lambda path: path.stat().st_mtime)
     return None
+
+
+def find_all_transcripts(session_dirs: Sequence[Path]) -> List[Path]:
+    transcripts: List[Path] = []
+    for session_dir in session_dirs:
+        try:
+            candidates = [path for path in session_dir.glob("*.jsonl") if path.is_file()]
+        except OSError:
+            continue
+        readable: List[Path] = []
+        for transcript in candidates:
+            try:
+                transcript.stat()
+            except OSError:
+                continue
+            readable.append(transcript)
+        transcripts.extend(sorted(readable, key=lambda path: path.stat().st_mtime))
+    return transcripts

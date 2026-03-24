@@ -58,10 +58,10 @@ run_as_openclaw() {
 capture_command() {
   local base_cmd="'${PYTHON_BIN}' '${CAPTURE_SCRIPT}' --user-id '${USER_ID}'"
   if [[ -d "${SERVICE_OPENCLAW_HOME}/.openclaw" && -d "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions" ]]; then
-    printf "%s --sessions-dir '%s'" "${base_cmd}" "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions"
+    printf "%s --sessions-dir '%s' --all-transcripts" "${base_cmd}" "${SERVICE_OPENCLAW_HOME}/.openclaw/agents/main/sessions"
     return 0
   fi
-  printf "%s" "${base_cmd}"
+  printf "%s --all-transcripts" "${base_cmd}"
 }
 
 require_root

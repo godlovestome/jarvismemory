@@ -112,6 +112,35 @@ class SessionRuntimeTests(unittest.TestCase):
 
         self.assertEqual(selected, home_file)
 
+    def test_find_all_transcripts_returns_every_readable_file_in_priority_order(self) -> None:
+        module = load_module()
+
+        root = self.make_sandbox()
+        home_dir = root / "home-sessions"
+        service_dir = root / "service-sessions"
+        home_dir.mkdir()
+        service_dir.mkdir()
+
+        service_old = service_dir / "service-old.jsonl"
+        service_new = service_dir / "service-new.jsonl"
+        home_only = home_dir / "home-only.jsonl"
+
+        service_old.write_text('{"type":"message"}\n', encoding="utf-8")
+        service_new.write_text('{"type":"message"}\n', encoding="utf-8")
+        home_only.write_text('{"type":"message"}\n', encoding="utf-8")
+
+        os.utime(service_old, (1000, 1000))
+        os.utime(service_new, (2000, 2000))
+        os.utime(home_only, (3000, 3000))
+
+        os.environ["OPENCLAW_HOME_SESSIONS_DIR"] = str(home_dir)
+        os.environ["OPENCLAW_SERVICE_SESSIONS_DIR"] = str(service_dir)
+        os.environ["OPENCLAW_SESSIONS_DIR"] = str(home_dir)
+
+        transcripts = module.find_all_transcripts(module.discover_session_dirs())
+
+        self.assertEqual(transcripts, [service_old, service_new, home_only])
+
     def test_ignores_unreadable_service_runtime_and_keeps_readable_home_dir(self) -> None:
         module = load_module()
 
