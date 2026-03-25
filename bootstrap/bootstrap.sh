@@ -337,7 +337,34 @@ memory = cfg.setdefault("memory", {})
 memory["backend"] = "qmd"
 memory["citations"] = "auto"
 qmd = memory.setdefault("qmd", {})
-qmd.setdefault("includeDefaultMemory", True)
+qmd_root = Path("/home/openclaw/qmd-index")
+paths = []
+if qmd_root.is_dir():
+    for child in sorted(qmd_root.iterdir()):
+        if child.is_dir():
+            paths.append({
+                "name": child.name,
+                "path": str(child),
+                "pattern": "**/*.md",
+            })
+    if not paths:
+        paths.append({
+            "name": "qmd-index",
+            "path": str(qmd_root),
+            "pattern": "**/*.md",
+        })
+elif qmd.get("paths"):
+    paths = [item for item in qmd.get("paths", []) if isinstance(item, dict)]
+else:
+    paths = [
+        {"name": "docs", "path": f"{workspace_path}/docs", "pattern": "**/*.md"},
+        {"name": "memory", "path": f"{workspace_path}/memory", "pattern": "**/*.md"},
+    ]
+
+qmd["command"] = "/home/openclaw/scripts/qmd-openclaw-wrapper.sh"
+qmd["searchMode"] = qmd.get("searchMode") or "query"
+qmd["includeDefaultMemory"] = False
+qmd["paths"] = paths
 update = qmd.setdefault("update", {})
 update.setdefault("interval", "5m")
 update.setdefault("debounceMs", 15000)
@@ -347,20 +374,6 @@ update["embedTimeoutMs"] = max(int(update.get("embedTimeoutMs", 0) or 0), qmd_ti
 limits = qmd.setdefault("limits", {})
 limits.setdefault("maxResults", 6)
 limits["timeoutMs"] = max(int(limits.get("timeoutMs", 0) or 0), qmd_timeout_ms)
-default_paths = [
-    {"name": "docs", "path": f"{workspace_path}/docs", "pattern": "**/*.md"},
-    {"name": "memory", "path": f"{workspace_path}/memory", "pattern": "**/*.md"},
-]
-existing_paths = qmd.setdefault("paths", [])
-existing_keys = {
-    (str(item.get("name", "")).strip(), str(item.get("path", "")).strip())
-    for item in existing_paths
-    if isinstance(item, dict)
-}
-for item in default_paths:
-    key = (item["name"], item["path"])
-    if key not in existing_keys:
-        existing_paths.append(item)
 
 agents = cfg.setdefault("agents", {}).setdefault("defaults", {})
 agents["workspace"] = workspace_path

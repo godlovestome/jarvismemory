@@ -75,6 +75,9 @@ for runtime, path in runtimes:
         f"OK   {runtime} memory.backend={memory.get('backend', '<missing>')} "
         f"citations={memory.get('citations', '<missing>')} timeoutMs={limits.get('timeoutMs', '<missing>')} "
         f"embedTimeoutMs={update.get('embedTimeoutMs', '<missing>')} "
+        f"command={qmd.get('command', '<missing>')} "
+        f"searchMode={qmd.get('searchMode', '<missing>')} "
+        f"includeDefaultMemory={qmd.get('includeDefaultMemory', '<missing>')} "
         f"paths={len(qmd.get('paths', []))}"
     )
 PY
