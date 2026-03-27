@@ -93,6 +93,15 @@ fi
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/bootstrap.sh"
 
+# Provide openclaw_config_paths as an alias for openclaw_json_paths.
+# Some callers reference this name; bootstrap.sh only defines openclaw_json_paths().
+openclaw_config_paths() {
+  printf '%s\n' "${OPENCLAW_HOME}/.openclaw/openclaw.json"
+  if has_service_runtime; then
+    printf '%s\n' "${SERVICE_OPENCLAW_HOME}/.openclaw/openclaw.json"
+  fi
+}
+
 log "Checking root"
 require_root
 
