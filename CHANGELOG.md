@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.1.0] - 2026-03-27
+
+### Added / Changed
+
+- QMD scope config fix: added `scope: {"default": "allow"}` to openclaw.json `memory.qmd` config, allowing all channels to access QMD search without per-channel overrides.
+- TOOLS.md update: added QMD knowledge base documentation to TOOLS.md so TARS knows QMD is installed and available for knowledge retrieval.
+- exec-approval fix: disabled exec approval requirement globally (`tools.exec.ask: "off"`) so new users do not need manual approval on first run.
+- Service session ACL repair: recursive permission fix for openclaw-svc sessions, ensuring transcript files are accessible across both home and service runtimes.
+- CodeShield plugin trust: root-owned plugin directories now match OpenClaw expectations, preventing suspicious-ownership plugin blocks.
+- Version bump to 2.1.0 across README, CHANGELOG, and plugin package.json.
+
+### 新增 / 调整
+
+- QMD scope 配置修复：在 openclaw.json 的 `memory.qmd` 配置中添加 `scope: {"default": "allow"}`，允许所有 channel 访问 QMD 搜索，无需逐 channel 覆盖。
+- TOOLS.md 更新：在 TOOLS.md 中添加 QMD 知识库文档，使 TARS 知道 QMD 已安装并可用于知识检索。
+- exec-approval 修复：全局禁用 exec 审批要求（`tools.exec.ask: "off"`），新用户首次运行不再需要手动审批。
+- 服务会话 ACL 修复：对 openclaw-svc sessions 进行递归权限修复，确保 transcript 文件在 home 和 service 两套运行时之间都可访问。
+- CodeShield 插件信任：root-owned 插件目录现在符合 OpenClaw 预期，避免被判定为可疑 ownership 而阻断。
+- 版本号更新至 2.1.0，覆盖 README、CHANGELOG 和插件 package.json。
+
 ## [2.0.23] - 2026-03-24
 
 ### Added / Changed
